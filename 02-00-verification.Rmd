@@ -1,0 +1,16 @@
+# Verification Practices
+
+When it comes to statistical analysis of verification practices the *Wilson Research Group functional verification study* [@wilson14] [@wilson16] [@wilson18] has been the main source of information for many years. While this is a good effort towards highlighting interesting industry trends, it has a number of fundamental flaws:
+
+* It includes some but not all of the [most popular](https://star-history.t9t.io/#vunit/vunit&osvvm/osvvm&cocotb/cocotb&UVVM/UVVM) open-source verification frameworks: VUnit [@vunit], cocotb [@cocotb], OSVVM [@osvvm] and UVVM [@uvvm].
+* Like any questionnaire-based study, it can't measure what people not responding do ([non-response bias](https://en.wikipedia.org/wiki/Participation_bias)). By the same token, it can only measure what respondents say they do but not what they actually do ([response bias](https://en.wikipedia.org/wiki/Response_bias)).
+* The data from the study in not open, only a selected set of views is. This means that conclusions outside of those views, for example regional differences, are difficult to draw.
+
+Keeping the data private is probably the only way to get companies to participate in such a survey and herein lays the problem. __Facts__, from a scientific point of view, are based on __measurements__ that can be __repeated__ and __reviewed__. This is why this repository comprises a study of open source projects in Github, and the code used to collect and present data is open to everyone. The benefits of this approach are:
+
+* All open-source verification frameworks are present.
+* There is no response bias, we see what people actually do. There can be other biases though, and we will get back to that.
+* Anyone can review and comment [the code](https://github.com/LarsAsplund/github-facts/) in public.
+* Anyone can modify the code to create the views they are interested in.
+
+One of the views we are interested in, is the VHDL view. Most VUnit users are working with VHDL designs and verification, so that will be the focus of our first analysis.

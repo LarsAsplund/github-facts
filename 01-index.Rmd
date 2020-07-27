@@ -1,0 +1,62 @@
+---
+github-repo: LarsAsplund/github-facts
+title: "GitHub Facts About the HDL Industry"
+author: ["Lars Asplund", "Unai Martinez-Corral"]
+site: bookdown::bookdown_site
+documentclass: report
+lof: yes
+bibliography: ["Rmd/refs.bib"]
+csl: Rmd/ieee.csl
+link-citations: yes
+description: "Report: GitHub Facts About the HDL Industry."
+output:
+  bookdown::gitbook:
+    css: Rmd/style.css
+    config:
+      toc:
+        collapse: none
+        before: |
+          <li style="text-align: center;"><a href="./index.html"><b>GitHub Facts About the HDL Industry</b></a></li>
+          <li style="text-align: center;"><a title="LarsAsplund/github-facts" href="https://github.com/LarsAsplund/github-facts"><img src="https://img.shields.io/badge/LarsAsplund-github--facts-gray.svg?longCache=true&style=flat-square&logo=github&labelColor=bb642a"></a></li>
+        after: |
+          <li style="text-align: center;"><a title="Discuss at GitHub Issues" href="https://github.com/LarsAsplund/github-facts/issues"><img src="https://img.shields.io/github/issues-raw/LarsAsplund/github-facts?longCache=true&style=flat-square&logo=github&label=Discuss%20at%20GitHub"></a></li>
+          <li style="text-align: center;"><a title="Join the chat at https://gitter.im/VUnit/vunit" href="https://gitter.im/VUnit/vunit"><img src="https://img.shields.io/badge/Join%20chat-at%20gitter-4db797.svg?longCache=true&style=flat-square&logo=gitter&logoColor=e8ecef"></a></li>
+          <li style="text-align: center;"><a title="@VUnitFramework" href="https://www.twitter.com/VUnitFramework"><img src="https://img.shields.io/twitter/follow/VUnitFramework.svg?longCache=true&style=flat-square&color=1DA1F2&label=%40VUnitFramework&logo=twitter&logoColor=fff"></a></li>
+          <li style="text-align: center; font-size: 12px;"><a href="https://github.com/rstudio/bookdown" target="blank"><i>Published with bookdown</i></a></li>
+      download:
+        - ["github-facts.pdf", "PDF"]
+        - ["github-facts.epub", "EPUB"]
+      info: no
+      sharing:
+        github: yes
+        twitter: no
+        facebook: no
+        all: ['twitter', 'linkedin', 'facebook']
+    bookdown::pdf_book:
+      toc_depth: 4
+      includes:
+        in_header: Rmd/preamble.tex
+      latex_engine: xelatex
+      citation_package: biblatex
+      biblio-style: ieee
+      keep_tex: yes
+    bookdown::epub_book: default
+---
+
+# What Can GitHub Tell Us About the HDL Industry? {#index}
+
+```{r adaption, echo=FALSE, out.width = '85%', fig.align='center'}
+knitr::include_graphics("img/vhdl_adoption_by_region.png")
+```
+
+During the last few years we've had many discussions within the **VUnit** community where we failed to reach a conclusion because we don't fully know how people at large are working with design and verification. Some questions arise frequently:
+
+* How is verification done?
+* What frameworks are used? Are they used together?
+* What are the dominant coding styles? Would people align to those if they knew?
+
+Knowing these would help the development of VUnit [@vunit]; where do we put our efforts? do we add functionality or reuse functionality from others? where does it make sense to create tighter integrations with other tools? can we avoid spending time on endless indentation and casing discussions? Just let a tool fix it and move on.
+
+It's not hard to find strong opinions in every possible direction, but we are looking for more solid facts. Facts can be found where data is, and one of the biggest pile of easy accessible data is GitHub. For that reason, this repository contains the mining effort to gather relevant information. Any information about projects related to HDL has been retrieved and processed.
+
+In the first chapter of this series, verification practices are discussed.
