@@ -11,12 +11,14 @@ from pathlib import Path
 
 
 def create_git_repo(file_names, repo_dir):
-    subprocess.call("git init", cwd=repo_dir)
+    subprocess.call(["git", "init"], cwd=repo_dir)
+    subprocess.call(["git", "config", "--local", "user.name", "Your Name"], cwd=repo_dir)
+    subprocess.call(["git", "config", "--local", "user.email", "you@example.com"], cwd=repo_dir)
     for file_name in file_names:
         path = Path(repo_dir) / file_name
         parent = path.parent
         if parent != Path(repo_dir):
             parent.mkdir(parents=True)
         path.touch()
-        subprocess.call(f"git add {path}", cwd=repo_dir)
-    subprocess.call('git commit -m "test_commit"', cwd=repo_dir)
+        subprocess.call(["git", "add", str(path)], cwd=repo_dir)
+    subprocess.call(["git", "commit", "-m", "test_commit"], cwd=repo_dir)

@@ -48,11 +48,11 @@ def clone_repo(repo_dir, repo_url, sparse=True):
     Didn't find a way to do that with the Github module.
     """
     errors = False
-    errors |= call("git init", cwd=repo_dir) != 0
-    errors |= call("git remote add -f origin %s" % repo_url, cwd=repo_dir) != 0
+    errors |= call(["git", "init"], cwd=repo_dir) != 0
+    errors |= call(["git", "remote", "add", "-f", "origin", "%s" % repo_url], cwd=repo_dir) != 0
 
     if sparse:
-        errors |= call("git config core.sparseCheckout true", cwd=repo_dir) != 0
+        errors |= call(["git", "config", "core.sparseCheckout", "true"], cwd=repo_dir) != 0
 
         with open(repo_dir / ".git" / "info" / "sparse-checkout", "w") as fptr:
             fptr.write("*.vhd\n")
@@ -60,7 +60,7 @@ def clone_repo(repo_dir, repo_url, sparse=True):
             fptr.write("*.py\n")
             fptr.write("*.sv\n")
 
-    errors |= call("git pull origin master", cwd=repo_dir) != 0
+    errors |= call(["git", "pull", "origin", "master"], cwd=repo_dir) != 0
 
     return not errors
 
