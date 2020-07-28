@@ -29,9 +29,9 @@ output:
       download:
         - ["github-facts.pdf", "PDF"]
         - ["github-facts.epub", "EPUB"]
-      view: https://github.com/LarsAsplund/github-facts/blob/master/bookdown/%s
-      edit: https://github.com/LarsAsplund/github-facts/edit/master/bookdown/%s
-      history: https://github.com/LarsAsplund/github-facts/commits/master/bookdown/%s
+      view: https://github.com/LarsAsplund/github-facts/blob/main/bookdown/%s
+      edit: https://github.com/LarsAsplund/github-facts/edit/main/bookdown/%s
+      history: https://github.com/LarsAsplund/github-facts/commits/main/bookdown/%s
       info: no
       sharing:
         github: yes
@@ -48,7 +48,7 @@ output:
     bookdown::epub_book: default
 ---
 
-(ref:repoTree) github.com/LarsAsplund/github-facts/tree/master
+(ref:repoTree) github.com/LarsAsplund/github-facts/tree/main
 
 # What Can GitHub Tell Us About the HDL Industry? {#index}
 
