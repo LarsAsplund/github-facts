@@ -1,5 +1,2 @@
 book_filename: "github-facts"
 delete_merged_file: true
-view: https://github.com/LarsAsplund/github-facts/blob/master/bookdown/%s
-edit: https://github.com/LarsAsplund/github-facts/edit/master/bookdown/%s
-history: https://github.com/LarsAsplund/github-facts/commits/master/bookdown/%s

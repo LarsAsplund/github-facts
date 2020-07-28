@@ -1,14 +1,14 @@
 ---
 github-repo: LarsAsplund/github-facts
 title: "GitHub Facts About the HDL Industry"
+description: "Report: GitHub Facts About the HDL Industry."
 author: ["Lars Asplund", "Unai Martinez-Corral"]
 site: bookdown::bookdown_site
-documentclass: report
-lof: yes
 bibliography: ["Rmd/refs.bib"]
 csl: Rmd/ieee.csl
 link-citations: yes
-description: "Report: GitHub Facts About the HDL Industry."
+documentclass: report
+lof: yes
 biblio-title: References
 margin-left: 35mm
 margin-right: 35mm
@@ -29,6 +29,9 @@ output:
       download:
         - ["github-facts.pdf", "PDF"]
         - ["github-facts.epub", "EPUB"]
+      view: https://github.com/LarsAsplund/github-facts/blob/master/bookdown/%s
+      edit: https://github.com/LarsAsplund/github-facts/edit/master/bookdown/%s
+      history: https://github.com/LarsAsplund/github-facts/commits/master/bookdown/%s
       info: no
       sharing:
         github: yes
@@ -41,7 +44,6 @@ output:
         in_header: Rmd/preamble.tex
       latex_engine: xelatex
       citation_package: biblatex
-      biblio-style: ieee
       keep_tex: yes
     bookdown::epub_book: default
 ---
