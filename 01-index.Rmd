@@ -43,6 +43,8 @@ output:
     bookdown::epub_book: default
 ---
 
+(ref:repoTree) github.com/LarsAsplund/github-facts/tree/master
+
 # What Can GitHub Tell Us About the HDL Industry? {#index}
 
 ```{r adaption, echo=FALSE, out.width = '85%', fig.align='center'}

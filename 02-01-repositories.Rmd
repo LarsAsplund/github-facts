@@ -35,7 +35,7 @@ The results presented so far were compiled using the scripts presented in the fo
 
 #### `github_search.py` {#github-search}
 
-[`github_search.py`](py/github_search.py) is used to search GitHub for all repositories containing files of a specific language and matching a specified query. To find all repositories containing VHDL files one can specify `end` as the query since all VHDL files contain that key word. The result of the search is listed in text files stored in `result_directory`. A GitHub user name and a Github [access token](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line) must also be provided to access the GitHub API.
+[`github_search.py`](https://(ref:repoTree)/py/github_search.py) is used to search GitHub for all repositories containing files of a specific language and matching a specified query. To find all repositories containing VHDL files one can specify `end` as the query since all VHDL files contain that key word. The result of the search is listed in text files stored in `result_directory`. A GitHub user name and a Github [access token](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line) must also be provided to access the GitHub API.
 
 ``` console
 python github_search.py \
@@ -49,11 +49,11 @@ Occasionally there are more than 1000 found VHDL files of a single size, for exa
 
 The GitHub API also has rate limitations, which means that searches with many results take a long time to complete. Searching for all VHDL files takes days but the more limited searches for specific verification frameworks that we will use later can complete in minutes. If you interrupt a longer search and restart it later `github_search.py` will look at the intermediate result files in `result_directory` and continue from where it was interrupted.
 
-The result from the latest search for all VHDL files is found in [`all_vhdl_repos.txt`](all_vhdl_repos.txt)
+The result from the latest search for all VHDL files is found in [`all_vhdl_repos.txt`](https://(ref:repoTree)/all_vhdl_repos.txt)
 
 #### `github_clone.py`
 
-[`github_clone.py`](py/github_clone.py) makes a clone of all repositories listed in a file such as those produced by `github_search.py` (\@ref(github-search)). The clone is sparse and only contains VHDL, SystemVerilog and Python files, which are the ones used for this study. The sparse clone is also stripped from its `.git` directory, and zipped to save storage space. The script also stores some basic information about the repository.
+[`github_clone.py`](https://(ref:repoTree)/py/github_clone.py) makes a clone of all repositories listed in a file such as those produced by `github_search.py` (\@ref(github-search)). The clone is sparse and only contains VHDL, SystemVerilog and Python files, which are the ones used for this study. The sparse clone is also stripped from its `.git` directory, and zipped to save storage space. The script also stores some basic information about the repository.
 
 A call to the script looks like this:
 
@@ -65,18 +65,18 @@ python github_clone.py \
 
 If `repository_list` contains a repository `foo/bar`, the script will create a directory `foo` under `result_directory` and in that directory the zipped repository as `bar.zip`. The basic repository information is stored in a JSON file named `bar.basic.1.json`.
 
-Cloning all VHDL repositories from GitHub takes several days and requires about 180 GB of storage. Due to that size, it has not been possible to share the data. Anyone interested in analyzing those repositories needs to recreate the data locally, using this script and the [all_vhdl_repos.txt](all_vhdl_repos.txt) repository list.
+Cloning all VHDL repositories from GitHub takes several days and requires about 180 GB of storage. Due to that size, it has not been possible to share the data. Anyone interested in analyzing those repositories needs to recreate the data locally, using this script and the [all_vhdl_repos.txt](https://(ref:repoTree)/all_vhdl_repos.txt) repository list.
 
 #### `analyze_test_strategy.py` {#analyze-test-strategy}
 
-[`analyze_test_strategy.py`](py/analyze_test_strategy.py) analyzes the cloned repositories and generates the statistics presented in this work. The initial search for repositories using any of the standard frameworks is automatic but also produces a number of false positives that must be removed manually:
+[`analyze_test_strategy.py`](https://(ref:repoTree)/py/analyze_test_strategy.py) analyzes the cloned repositories and generates the statistics presented in this work. The initial search for repositories using any of the standard frameworks is automatic but also produces a number of false positives that must be removed manually:
 
 - A repository with both VHDL and (System)Verilog files that is also using UVM or cocotb may not use these frameworks to verify the VHDL code. VUnit can also be used for (System)Verilog verification but the search script can distinguish and ignore such repositories to avoid false positives.
 - Sometimes the main design being verified is based on (System)Verilog but it also includes third party IPs written in VHDL. This is considered a false positive since the IPs are not the target for the verification and the design language of choice is not VHDL.
 - Some repositories have testbenches based on a standard framework but the purpose is not to verify VHDL code but rather to use the code for testing an EDA tool being developed. A parser for example.
 - This study is focused on the users of the frameworks, not the developers. The repositories hosting the frameworks and copies of these repositories have been excluded.
 
-The false positives are listed in [`fp_repos.json`](fp_repos.json).
+The false positives are listed in [`fp_repos.json`](https://(ref:repoTree)/fp_repos.json).
 
 The script will produce a JSON file for each analyzed repository (`repo_name.test.2.json`) and also a summary JSON file. The name of that file is given in the call to the script
 
@@ -89,7 +89,7 @@ python analyze_test_strategy.py \
 
 #### `visualize_test_strategy.py`
 
-[`visualize_test_strategy.py`](py/analyze_test_strategy.py) creates the figures used in this post from the results generated by `analyze_test_strategy.py` (\@ref(analyze-test-strategy)). The figures are saved to the output directory given in the call.
+[`visualize_test_strategy.py`](https://(ref:repoTree)/py/analyze_test_strategy.py) creates the figures used in this post from the results generated by `analyze_test_strategy.py` (\@ref(analyze-test-strategy)). The figures are saved to the output directory given in the call.
 
 ``` console
 python visualize_test_strategy.py \
