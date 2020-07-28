@@ -9,6 +9,9 @@ bibliography: ["Rmd/refs.bib"]
 csl: Rmd/ieee.csl
 link-citations: yes
 description: "Report: GitHub Facts About the HDL Industry."
+biblio-title: References
+margin-left: 35mm
+margin-right: 35mm
 output:
   bookdown::gitbook:
     css: Rmd/style.css
