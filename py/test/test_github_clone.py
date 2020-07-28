@@ -165,8 +165,8 @@ class TestGithubClone(TestCase):
                 clone(
                     repo_list_file,
                     Path(repo_dir),
-                    "LarsAsplund",
-                    "39e5efb5bfcd55aea5cd2ff67b4596eb893f7793",
+                    "UserName",
+                    "access_token",
                     False,
                 )
 
