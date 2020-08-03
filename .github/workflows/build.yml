@@ -12,7 +12,7 @@ jobs:
 
     - uses: actions/checkout@v2
 
-    - name: Build bokkdown site and PDF
+    - name: Build bookdown site and PDF
       run: |
         docker build -t gh-facts - < Rmd/Dockerfile
         docker run --rm -v $(pwd):/src gh-facts
