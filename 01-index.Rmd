@@ -29,9 +29,9 @@ output:
       download:
         - ["github-facts.pdf", "PDF"]
         - ["github-facts.epub", "EPUB"]
-      view: https://github.com/LarsAsplund/github-facts/blob/main/bookdown/%s
-      edit: https://github.com/LarsAsplund/github-facts/edit/main/bookdown/%s
-      history: https://github.com/LarsAsplund/github-facts/commits/main/bookdown/%s
+      view: https://github.com/LarsAsplund/github-facts/blob/main/%s
+      edit: https://github.com/LarsAsplund/github-facts/edit/main/%s
+      history: https://github.com/LarsAsplund/github-facts/commits/main/%s
       info: no
       sharing:
         github: yes
