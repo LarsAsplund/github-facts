@@ -1,0 +1,69 @@
+## Frameworks
+
+```{python, echo=FALSE}
+n_repositories = 0
+for data in repos_stat["repo_stat"].values():
+    if data["test_strategies"]:
+        n_repositories += 1
+```
+In total, **there are `r py$n_repositories` repositories using a standard framework**. Figure \@ref(fig:total-repo-mix) shows the number of repositories using each framework, and how more than one are used in some of them. Note that using several frameworks in the same repository doesn't necessarily mean that they are used for the same testbenches. This diagram doesn't make that distinction.
+
+```{r total-repo-mix, fig.cap='Number of repositories using one or several frameworks.', echo=FALSE, out.width = '75%', fig.align='center', dev='svg'}
+include_svg("img/total_repo_framework_distribution.svg")
+```
+
+*Note: Drawing area proportional Euler diagrams is hard and the R package we used ([eulerr](https://cran.r-project.org/web/packages/eulerr/)) didn't quite make it. In these situations, the missing groups are listed below the diagram. In this case it failed to include two repositories using all three of VUnit, OSVVM, and UVVM.*
+
+From this diagram we can see how frequently the different frameworks are used, by just counting the number of repositories and to what extent they are used together. One of the more notable facts is that **UVM isn't the dominating framework**, as concluded in the Wilson study [@wilson18] (from now on called WS). However, there are several important differences between WS and this GitHub study (from now on called GS). One is that WS has professional participants only, but **the diagram above includes repositories developed by professionals as well as people from Academia**.
+
+To make GS more comparable with WS, all repositories need to be classified as being professional, academic or unknown (if failure to classify). This was done by looking at the contributors to each repository. To classify the contributors as professionals or from academia, GitHub user profiles and Git logs were looked, the usernames were searched through Google and searched on social platforms like LinkedIn. With that information, the following criteria was used:
+
+* A repository with contributions from professionals is classified as a professional repository. Academic work is sometimes done together with the industry, which means that there is a professional interest for that work. That is the reason for not requiring all contributors to be professionals in order to classify the repository as professional.
+* A repository with no contributions from professionals, but with contributions from academia, is classified as an academic repository.
+* If all contributions are made by users with unknown background, the repository is classified as unknown.
+* A repository with contributors that are professionals today, but not at the time of their contributions, is not classified as professional.
+
+```{r professional-repo-mix, fig.cap='Number of professional repositories using one or several frameworks.', echo=FALSE, out.width = '75%', fig.align='center', dev='svg'}
+include_svg("img/professional_repo_framework_distribution.svg")
+```
+
+The distribution of professional repositories, which is shown in Figure \@ref(fig:professional-repo-mix), looks a bit different compared to the overall view in figure \@ref(fig:total-repo-mix), but UVM is still not dominating. Another notable observation is how frameworks are used in combination:
+
+* **Most repositories using more than one framework use VUnit**.
+* **More than half of the repositories using OSVVM also use VUnit**.
+* **UVM is not combined with any other framework**.
+
+```{r academic-repo-mix, fig.cap='Number of academic repositories using one or several frameworks.', echo=FALSE, out.width = '75%', fig.align='center', dev='svg'}
+include_svg("img/academic_repo_framework_distribution.svg")
+```
+
+The academic view is shown in Figure \@ref(fig:academic-repo-mix). There is less mixing of frameworks in Academia, and this is what we would expect. With less experience, there is less time to try the different alternatives and find the successful combinations.
+
+```{r unknown-tab, tidy=FALSE, echo=FALSE}
+mat = matrix(
+  c(0, 3, 1, 5, 6),
+  nrow=1,
+  ncol=5
+)
+knitr::kable(
+  mat,
+  align = 'ccccc',
+  booktabs = TRUE,
+  col.names = c('UVVM', 'VUnit', 'cocotb', 'OSVVM', 'UVM'),
+  caption = 'Number of unknown repositories.'
+)
+```
+
+For completeness, the number of unknown repositories should also be analyzed (see Table \@ref(tab:unknown-tab)). The numbers are big enough to create an uncertainty about the precedence between cocotb, OSVVM, and UVM in previous diagrams; but they are not significant enough to change the bigger picture. **VUnit is the most commonly used verification framework for VHDL repositories on GitHub**.
+
+`r if (knitr:::is_html_output()) '
+---
+'`
+
+While some insights were shown on how verification frameworks are used on GitHub, the unexplained differences between WS and GS remain. There are three more possible explanations that need to be investigated further:
+
+1. GS is focused on VHDL repositories, while WS includes both VHDL and (System)Verilog projects.
+2. WS was conducted in 2018 while the GitHub data originates from June 2020.
+3. In this section, the number of repositories was analyzed, and not the number of users. This is misleading because a single user can have several repositories and a single repository can have many contributors. WS presents percentages of design projects and would suffer from the same problem. However, we don't think they have that data. Looking at the newly released 2020 survey (results are yet to be published) there are no questions that allow them to determine if two survey participants are working on the same project or not. Most likely they are counting users.
+
+To get a deeper and more accurate understanding of the GitHub data, in following sections we will continue analyzing the Git history of these repositories and finding the number of users for each framework. The Git history will also reveal how the framework usage has changed over time.

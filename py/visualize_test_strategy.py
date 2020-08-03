@@ -10,6 +10,7 @@ import argparse
 from json import load
 from datetime import date, timedelta
 from pathlib import Path
+from subprocess import call
 import matplotlib.pyplot as plt
 from matplotlib.dates import YearLocator, MonthLocator, DateFormatter
 
@@ -119,12 +120,135 @@ def make_graph_over_time(time, values, ylabel, title, output_path):
     plt.savefig(output_path, format=output_path.suffix[1:])
 
 
+def get_repo_framework_distribution(repos_stat, repo_classification):
+    """
+    Get the number of repositories using each framework.
+    
+    Returns a dict with keys are framework(s) joined with "&" (for example "VUnit&OSVVM")
+    and the values the number of repositories using the combination of frameworks as indicated
+    by the key.
+    """
+
+    def fix_framework_name_casing(lowercase_names):
+        def fix_case(name):
+            if name == "vunit":
+                return "VUnit"
+            elif name == "osvvm":
+                return "OSVVM"
+            elif name == "uvvm":
+                return "UVVM"
+            elif name == "uvm":
+                return "UVM"
+            else:
+                return name
+
+        uppercase_names = []
+        for name in lowercase_names:
+            uppercase_names.append(fix_case(name))
+
+        return uppercase_names
+
+    distribution = dict(
+        total=dict(), professional=dict(), academic=dict(), unknown=dict()
+    )
+
+    for repo, data in repos_stat["repo_stat"].items():
+        test_strategies = data["test_strategies"]
+        if test_strategies:
+            if not repo in repo_classification:
+                raise RuntimeError(f"No classification for {repo}.")
+            elif repo_classification[repo] not in [
+                "professional",
+                "academic",
+                "unknown",
+            ]:
+                raise RuntimeError(
+                    f"Unknown classification {repo_classification[repo]} for {repo}."
+                )
+
+            test_strategies.sort()
+            test_strategies = fix_framework_name_casing(test_strategies)
+            test_strategies = "&".join(test_strategies)
+
+            for classification in ["total", repo_classification[repo]]:
+                if test_strategies in distribution[classification]:
+                    distribution[classification][test_strategies] += 1
+                else:
+                    distribution[classification][test_strategies] = 1
+
+    return distribution
+
+
+def plot_euler_diagram(distribution, output_path):
+    """
+    Visualize distribution as an euler diagram and save it to output_path.
+    
+    This function uses the eulerr package in R.
+    """
+
+    group_list = ", ".join(
+        [f"'{group}' = {number}" for group, number in distribution.items()]
+    )
+
+    fixed_output_path = str(output_path).replace("\\", "/")
+    script = f"""
+library(eulerr)
+set.seed(0)
+diagram <- euler(c({group_list}), shape = 'ellipse')
+residuals = resid(diagram)
+svg('{fixed_output_path}')
+if (summary(residuals)[6] >= 1) {{
+  legend_text = c("Missing Groups:")
+  for (idx in 1:length(residuals)) {{
+    if (residuals[idx] >= 1) {{
+      legend_text = append(legend_text, paste("-", names(residuals)[idx], ":", residuals[idx]))
+    }}
+  }}
+  plot(diagram, labels = rownames(diagram$ellipses), legend = list(labels = legend_text, pch="", side="bottom"), quantities = TRUE)
+}} else {{
+  plot(diagram, quantities = TRUE)
+}}
+d = dev.off()"""
+
+    script_path = output_path.parent / "script.r"
+    script_path.write_text(script)
+
+    if output_path.exists():
+        output_path.unlink()
+
+    if call(["Rscript", str(script_path)]) != 0:
+        raise RuntimeError("Failed to execute R script")
+
+    script_path.unlink()
+
+
+def visualize_repo_framework_distribution(repos_stat, repo_classification, output_path):
+    """
+    Visualize the number of repositories using each framework as an Euler diagrams.
+
+    The input classification determines what framework(s) to include in the diagram.
+    """
+
+    distributions = get_repo_framework_distribution(repos_stat, repo_classification)
+    for classification, distribution in distributions.items():
+        plot_euler_diagram(
+            distribution,
+            output_path / f"{classification}_repo_framework_distribution.svg",
+        )
+
+
 def visualize(
-    repos_stat_path, output_path, min_number_of_repos_with_std_test_strategy=10
+    repos_stat_path,
+    repo_classification_path,
+    output_path,
+    min_number_of_repos_with_std_test_strategy=10,
 ):
     """Visualize statistics."""
     with open(repos_stat_path) as json:
         repos_stat = load(json)
+
+    with open(repo_classification_path) as json:
+        repo_classification = load(json)
 
     (
         timeline,
@@ -150,6 +274,8 @@ def visualize(
         output_path / "repositories_using_std_framework.png",
     )
 
+    visualize_repo_framework_distribution(repos_stat, repo_classification, output_path)
+
 
 def main():
     """Parse command line arguments."""
@@ -162,12 +288,18 @@ def main():
     )
 
     parser.add_argument(
+        "repo_classification_path",
+        help="JSON file classifying all repositories with a standard test strategy",
+        type=Path,
+    )
+
+    parser.add_argument(
         "output_path", help="Directory where plots are saved", type=Path
     )
 
     args = parser.parse_args()
 
-    visualize(args.repos_stat_path, args.output_path)
+    visualize(args.repos_stat_path, args.repo_classification_path, args.output_path)
 
 
 if __name__ == "__main__":

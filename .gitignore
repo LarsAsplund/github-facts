@@ -5,5 +5,4 @@ _publish.R
 _book
 _bookdown_files
 all_vhdl_repos.txt
-py/
 rsconnect

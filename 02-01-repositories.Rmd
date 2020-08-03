@@ -1,17 +1,45 @@
 ## Repository Analysis
 
-When scanning GitHub for VHDL repositories, about **1.9 million VHDL files** were found in **36000** repositories. These repositories were initially analyzed for two things:
+```{r, echo=FALSE}
+library(reticulate)
+```
+```{python, echo=FALSE}
+from pathlib import Path
+from json import load
+
+repos_stat_path = Path.cwd() / "repos_stat.json"
+with open(repos_stat_path) as json:
+    repos_stat = load(json)
+
+total_n_vhdl_files = repos_stat["total_n_vhdl_files"]
+total_n_repos = repos_stat["total_n_repos"]
+```
+
+When scanning GitHub for VHDL repositories, **`r py$total_n_vhdl_files` VHDL files** were found in **`r py$total_n_repos` repositories**. These repositories were initially analyzed for two things:
 
 1. **Are tests provided?** This was a simple analysis just looking for VHDL files containing anything with *test* or *tb*.
 2. **Are any of the standard frameworks used (VUnit, UVM, UVVM, OSVVM and/or cocotb)?** There have been discussions regarding the use of the term "standard(ized)"; so, to be clear, we mean *standard* as in well-established within the community, not as in standardized.
 
-The first analysis (see Figure \@ref(fig:repositories)) revealed that roughly 44% of all repositories provide tests for their code and that the trend is declining.
+```{python, echo=FALSE}
+n_repos_with_tests = 0
+for data in repos_stat["repo_stat"].values():
+    if data["test_strategies"] or data["has_tests"]:
+        n_repos_with_tests += 1
+
+percentage_repos_with_tests = round(100 * n_repos_with_tests / total_n_repos)
+```
+
+The first analysis (see Figure \@ref(fig:repositories)) revealed that roughly **`r py$percentage_repos_with_tests`% of all repositories provide tests** for their code and that the trend is declining.
 
 ```{r repositories, fig.cap='Repositories providing tests.', echo=FALSE, out.width = '85%', fig.align='center'}
 knitr::include_graphics("img/repositories_providing_tests.png")
 ```
 
-Just looking at the file names is not optimal. **6% of the repositories using a standard VHDL-based framework (VUnit, UVVM or OSVVM) do not use such a naming convention**. However, it gives us a ballpark figure and a trend.
+```{python, echo=FALSE}
+percentage_without_test_naming = round(100 * repos_stat["n_repos_with_standard_vhdl_strategy_but_no_obvious_test_files"] / repos_stat["n_repos_with_standard_vhdl_strategy"])
+```
+
+Just looking at the file names is not optimal. **`r py$percentage_without_test_naming`% of the repositories using a standard VHDL-based framework (VUnit, UVVM or OSVVM) do not use such a naming convention**. However, it gives us a ballpark figure and a trend.
 
 The second analysis (see Figure \@ref(fig:standard)) looked at the repositories providing tests and calculated the percentage of them that are using at least one of the standard verification frameworks. This trend is increasing rapidly over the last few years.
 
@@ -94,5 +122,6 @@ python analyze_test_strategy.py \
 ``` console
 python visualize_test_strategy.py \
   path/to/analysis_summary.json \
+  path/to/github_facts/root/repo_classification.json \
   path/to/output/directory
 ```
