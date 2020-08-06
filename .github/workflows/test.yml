@@ -15,6 +15,11 @@ jobs:
       with:
         python-version: 3.8
 
-    - run: python -m pip install --progress-bar off -r py/requirements.txt
+    - name: Install dependencies
+      run: |
+        sudo apt install -y r-base
+        sudo Rscript -e "install.packages('eulerr')"
+        python -m pip install --progress-bar off -r py/requirements.txt
 
-    - run: PYTHONPATH=$(pwd)/py python -m pytest -v -s -ra py/test/* --color=yes
+    - name: Run tests
+      run: PYTHONPATH=$(pwd)/py python -m pytest -v -s -ra py/test/* --color=yes
