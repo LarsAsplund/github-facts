@@ -1,3 +1,8 @@
+fuzzywuzzy
+GitPython
+ipython
 matplotlib
+MoviePy
 pytest
+python-Levenshtein
 requests

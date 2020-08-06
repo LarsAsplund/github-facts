@@ -49,10 +49,15 @@ def clone_repo(repo_dir, repo_url, sparse=True):
     """
     errors = False
     errors |= call(["git", "init"], cwd=repo_dir) != 0
-    errors |= call(["git", "remote", "add", "-f", "origin", "%s" % repo_url], cwd=repo_dir) != 0
+    errors |= (
+        call(["git", "remote", "add", "-f", "origin", "%s" % repo_url], cwd=repo_dir)
+        != 0
+    )
 
     if sparse:
-        errors |= call(["git", "config", "core.sparseCheckout", "true"], cwd=repo_dir) != 0
+        errors |= (
+            call(["git", "config", "core.sparseCheckout", "true"], cwd=repo_dir) != 0
+        )
 
         with open(repo_dir / ".git" / "info" / "sparse-checkout", "w") as fptr:
             fptr.write("*.vhd\n")
@@ -107,66 +112,74 @@ def zip_repo(repo_dir):
     ziph.close()
 
 
-def clone(repo_list_path, repos_root, github_user, github_access_token, retry):
+def clone(
+    repos, repos_root, github_user, github_access_token, retry, no_zip=False,
+):
     """Clones all repos in the provided list."""
+
     if not repos_root.exists():
         repos_root.mkdir()
 
-    with open(repo_list_path) as repo_list:
-        n_repos = 0
-        for line in repo_list:
-            n_repos += 1
-            github_repo_full_name = line[:-1]
+    n_repos = 0
+    for github_repo_full_name in repos:
+        n_repos += 1
 
-            exception_reason = None
-            try:
-                github_repo_user = github_repo_full_name.split("/")[0]
-                github_repo_name = github_repo_full_name.split("/")[1]
+        exception_reason = None
+        try:
+            github_repo_user = github_repo_full_name.split("/")[0]
+            github_repo_name = github_repo_full_name.split("/")[1]
 
-                user_dir = repos_root / github_repo_user
+            user_dir = repos_root / github_repo_user
 
-                if not user_dir.exists():
-                    user_dir.mkdir()
+            if not user_dir.exists():
+                user_dir.mkdir()
 
-                if (user_dir / f"{github_repo_name}.failed").exists() and not retry:
-                    print("%d. %s already failed" % (n_repos, github_repo_full_name))
-                    continue
+            if (user_dir / f"{github_repo_name}.failed").exists() and not retry:
+                print("%d. %s already failed" % (n_repos, github_repo_full_name))
+                continue
 
-                repo_dir = user_dir / github_repo_name
-                cloned_repo = False
-                already_cloned = False
-                if (user_dir / f"{github_repo_name}.zip").exists():
-                    print("%d. %s already cloned" % (n_repos, github_repo_full_name))
-                    already_cloned = True
-                else:
-                    if not repo_dir.exists():
-                        repo_dir.mkdir()
-
-                    print("%d. Cloning %s" % (n_repos, github_repo_full_name))
-                    clone_url = f"https://github.com/{github_repo_full_name}.git"
-                    cloned_repo = clone_repo(repo_dir, clone_url)
-
-            except Exception as ex:
-                exception_reason = str(ex)
-                print(exception_reason)
-                print("Cloning failed")
-
-            if cloned_repo or already_cloned:
-                basic_data_path = (
-                    user_dir / f"{github_repo_name}.basic.{BASIC_JSON_VERSION}.json"
+            repo_dir = user_dir / github_repo_name
+            cloned_repo = False
+            updated_repo = False
+            already_cloned = False
+            if not no_zip and (user_dir / f"{github_repo_name}.zip").exists():
+                print("%d. %s already cloned" % (n_repos, github_repo_full_name))
+                already_cloned = True
+            elif (repo_dir / ".git").exists() and retry:
+                print("%d. Updating %s" % (n_repos, github_repo_full_name))
+                updated_repo = (
+                    call(["git", "pull", "origin", "master"], cwd=repo_dir) == 0
                 )
+            else:
+                if not repo_dir.exists():
+                    repo_dir.mkdir()
 
-                basic_data = get_basic_data(
-                    github_repo_full_name,
-                    basic_data_path,
-                    github_user,
-                    github_access_token,
-                )
+                print("%d. Cloning %s" % (n_repos, github_repo_full_name))
+                clone_url = f"https://github.com/{github_repo_full_name}.git"
+                cloned_repo = clone_repo(repo_dir, clone_url)
 
-                if basic_data:
-                    with open(basic_data_path, "w") as json:
-                        dump(basic_data, json)
+        except Exception as ex:
+            exception_reason = str(ex)
+            print(exception_reason)
+            print("Cloning failed")
 
+        if cloned_repo or updated_repo or already_cloned:
+            basic_data_path = (
+                user_dir / f"{github_repo_name}.basic.{BASIC_JSON_VERSION}.json"
+            )
+
+            basic_data = get_basic_data(
+                github_repo_full_name,
+                basic_data_path,
+                github_user,
+                github_access_token,
+            )
+
+            if basic_data:
+                with open(basic_data_path, "w") as json:
+                    dump(basic_data, json)
+
+        if not no_zip:
             if cloned_repo:
                 zip_repo(repo_dir)
             elif not already_cloned:
@@ -178,11 +191,21 @@ def clone(repo_list_path, repos_root, github_user, github_access_token, retry):
                 rmtree(str(repo_dir))
 
 
+def clone_from_file_based_list(
+    repo_list_path, repos_root, github_user, github_access_token, retry, no_zip=False,
+):
+    """Clones all repos in the provided file-based list."""
+
+    with open(repo_list_path) as repo_list:
+        repos = [line[:-1] for line in repo_list]
+        clone(repos, repos_root, github_user, github_access_token, retry, no_zip=False)
+
+
 def main():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         description="Clone repos from a list. Only checkout VHDL, SystemVerilog, and Python files."
-        "Zip to save space."
+        "Optionally zip to save space (default)."
     )
     parser.add_argument("repo_list", help="File containing a list of repos", type=Path)
     parser.add_argument(
@@ -198,14 +221,17 @@ def main():
         "--retry", help="Retry cloning repos that previously failed", default=False
     )
 
+    parser.add_argument("--no-zip", help="Don't zip the clone", default=False)
+
     args = parser.parse_args()
 
-    clone(
+    clone_from_file_based_list(
         args.repo_list,
         args.repos_root,
         args.github_user,
         args.github_access_token,
         args.retry,
+        args.no_zip,
     )
 
 

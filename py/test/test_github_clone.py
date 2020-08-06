@@ -18,7 +18,7 @@ from github_clone import (
     get_basic_data,
     rmtree,
     zip_repo,
-    clone,
+    clone_from_file_based_list,
     main,
 )
 from test.common import create_git_repo
@@ -162,12 +162,8 @@ class TestGithubClone(TestCase):
                 (Path(repo_dir) / "already" / "cloned.zip").touch()
                 (Path(repo_dir) / "already" / "failed.failed").touch()
 
-                clone(
-                    repo_list_file,
-                    Path(repo_dir),
-                    "UserName",
-                    "access_token",
-                    False,
+                clone_from_file_based_list(
+                    repo_list_file, Path(repo_dir), "UserName", "access_token", False,
                 )
 
                 repos.remove("already/failed")
@@ -197,7 +193,7 @@ class TestGithubClone(TestCase):
             "access_token",
         ],
     )
-    @patch("github_clone.clone")
+    @patch("github_clone.clone_from_file_based_list")
     def test_cli(clone_mock):
         main()
         clone_mock.assert_called_once_with(
@@ -205,5 +201,6 @@ class TestGithubClone(TestCase):
             Path("path") / "to" / "repo_dir",
             "UserName",
             "access_token",
+            False,
             False,
         )

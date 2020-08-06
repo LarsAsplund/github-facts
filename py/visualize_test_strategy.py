@@ -15,6 +15,77 @@ import matplotlib.pyplot as plt
 from matplotlib.dates import YearLocator, MonthLocator, DateFormatter
 
 
+def date_range(first_date, last_date):
+    """Return dates from first_data to, and including, last_date."""
+    current_date = first_date
+    while current_date <= last_date:
+        yield current_date
+        current_date += timedelta(days=1)
+
+
+def integrate_over_dates(date_dict, first_date, last_date):
+    integrated_dict = {first_date - timedelta(days=1): 0}
+    for day in date_range(first_date, last_date):
+        integrated_dict[day] = integrated_dict[day - timedelta(days=1)] + date_dict[day]
+
+    return integrated_dict
+
+
+def create_accumulated_histogram_from_dict_with_dates(date_dict, date_function):
+    """
+    Create an accumulated histogram from a dict with dates.
+    
+    The dates are founds in the values by applying the provided date function. If
+    the date function returns None that value doesn't contribute to the
+    accumulated histogram.
+    """
+
+    histogram = dict()
+    first_date = date(2070, 1, 1)
+    last_date = date(1970, 1, 1)
+    for value in date_dict.values():
+        days = date_function(value)
+        if not days:
+            continue
+        else:
+            for day in days:
+                if day in histogram:
+                    histogram[day] += 1
+                else:
+                    histogram[day] = 1
+
+        first_date = min(first_date, min(days))
+        last_date = max(last_date, max(days))
+
+    accumulated_histogram = []
+    for day in date_range(first_date, last_date):
+        if day == first_date:
+            accumulated_histogram.append(histogram[day])
+        elif day in histogram:
+            accumulated_histogram.append(accumulated_histogram[-1] + histogram[day])
+        else:
+            accumulated_histogram.append(accumulated_histogram[-1])
+
+    return accumulated_histogram, first_date, last_date
+
+
+def extend_accumulated_histogram(
+    accumulated_histogram,
+    first_date,
+    last_date,
+    extended_first_date,
+    extended_last_date,
+):
+    if first_date > last_date:
+        return [0] * ((extended_last_date - extended_first_date).days + 1)
+
+    result = [0] * (first_date - extended_first_date).days
+    result.extend(accumulated_histogram)
+    result.extend([accumulated_histogram[-1]] * (extended_last_date - last_date).days)
+
+    return result
+
+
 def get_percentage_repos_with_tests(
     repos_stat, min_number_of_repos_with_std_test_strategy
 ):
@@ -28,12 +99,6 @@ def get_percentage_repos_with_tests(
 
     if first_date + timedelta(days=364) > last_date:
         return [], [], []
-
-    def date_range(first_date, last_date):
-        current_date = first_date
-        while current_date <= last_date:
-            yield current_date
-            current_date += timedelta(days=1)
 
     created_repos = {day: 0 for day in date_range(first_date, last_date)}
     created_repos_with_test = {day: 0 for day in date_range(first_date, last_date)}
@@ -49,16 +114,13 @@ def get_percentage_repos_with_tests(
         if data["test_strategies"]:
             created_repos_with_std_test_strategy[creation_date] += 1
 
-    def integrate(created_repos):
-        total_repos = {first_date - timedelta(days=1): 0}
-        for day in date_range(first_date, last_date):
-            total_repos[day] = total_repos[day - timedelta(days=1)] + created_repos[day]
-
-        return total_repos
-
-    total_repos = integrate(created_repos)
-    total_repos_with_test = integrate(created_repos_with_test)
-    total_repos_with_std_test_strategy = integrate(created_repos_with_std_test_strategy)
+    total_repos = integrate_over_dates(created_repos, first_date, last_date)
+    total_repos_with_test = integrate_over_dates(
+        created_repos_with_test, first_date, last_date
+    )
+    total_repos_with_std_test_strategy = integrate_over_dates(
+        created_repos_with_std_test_strategy, first_date, last_date
+    )
 
     first_date_to_plot = first_date + timedelta(days=364)
     for day in date_range(first_date + timedelta(days=364), last_date):
@@ -99,25 +161,56 @@ def get_percentage_repos_with_tests(
     )
 
 
-def make_graph_over_time(time, values, ylabel, title, output_path):
-    """
-    Plot the provided values as a function of time.
+def make_graph_over_time(time, lines, ylabel, title, output_path, show_legend=True):
+    _, ax = plt.subplots()
+    ax.xaxis.set_major_locator(YearLocator())
+    ax.xaxis.set_major_formatter(DateFormatter("%Y"))
+    ax.xaxis.set_minor_locator(MonthLocator())
 
-    The plot is saved as an image on a format based on the extension on the provided output_path.
-    """
-    _fig, axes = plt.subplots()
-    axes.xaxis.set_major_locator(YearLocator())
-    axes.xaxis.set_major_formatter(DateFormatter("%Y"))
-    axes.xaxis.set_minor_locator(MonthLocator())
+    max_value = 0
+    time_as_list = list(time)
+    for framework, values in lines.items():
+        ax.plot(
+            time_as_list, values, label=fix_framework_name_casing(framework),
+        )
 
-    axes.plot(time, values)
+        max_value = max(max_value, max(values))
 
-    axes.set_ylim(0, max(values) / 0.9)
-    axes.set_xlabel("Date")
-    axes.set_ylabel(ylabel)
-    axes.set_title(title)
+    ax.set_ylim(0, max_value / 0.9)
+    ax.set_xlabel("Time")
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    if show_legend:
+        ax.legend()
 
+    if output_path.exists():
+        output_path.unlink()
     plt.savefig(output_path, format=output_path.suffix[1:])
+
+
+def fix_framework_name_casing(lowercase_names):
+    """Return proper casing for a standard framework expressed in all lowercase letters."""
+
+    def fix_case(name):
+        if name == "vunit":
+            return "VUnit"
+        elif name == "osvvm":
+            return "OSVVM"
+        elif name == "uvvm":
+            return "UVVM"
+        elif name == "uvm":
+            return "UVM"
+        else:
+            return name
+
+    if isinstance(lowercase_names, str):
+        return fix_case(lowercase_names)
+
+    uppercase_names = []
+    for name in lowercase_names:
+        uppercase_names.append(fix_case(name))
+
+    return uppercase_names
 
 
 def get_repo_framework_distribution(repos_stat, repo_classification):
@@ -128,25 +221,6 @@ def get_repo_framework_distribution(repos_stat, repo_classification):
     and the values the number of repositories using the combination of frameworks as indicated
     by the key.
     """
-
-    def fix_framework_name_casing(lowercase_names):
-        def fix_case(name):
-            if name == "vunit":
-                return "VUnit"
-            elif name == "osvvm":
-                return "OSVVM"
-            elif name == "uvvm":
-                return "UVVM"
-            elif name == "uvm":
-                return "UVM"
-            else:
-                return name
-
-        uppercase_names = []
-        for name in lowercase_names:
-            uppercase_names.append(fix_case(name))
-
-        return uppercase_names
 
     distribution = dict(
         total=dict(), professional=dict(), academic=dict(), unknown=dict()
@@ -260,18 +334,20 @@ def visualize(
 
     make_graph_over_time(
         timeline,
-        percentage_repos_with_tests,
+        dict(data=percentage_repos_with_tests),
         "Percentage",
         "Repositories Providing Tests (1 Year Average)",
         output_path / "repositories_providing_tests.png",
+        False,
     )
 
     make_graph_over_time(
         timeline,
-        percentage_repos_with_std_test_strategy,
+        dict(data=percentage_repos_with_std_test_strategy),
         "Percentage",
         "Repositories with Tests Using a Standard Framework (1 Year Average)",
         output_path / "repositories_using_std_framework.png",
+        False,
     )
 
     visualize_repo_framework_distribution(repos_stat, repo_classification, output_path)

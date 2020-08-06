@@ -79,7 +79,7 @@ The GitHub API also has rate limitations, which means that searches with many re
 
 The result from the latest search for all VHDL files is found in [`all_vhdl_repos.txt`](https://(ref:repoTree)/all_vhdl_repos.txt)
 
-#### `github_clone.py`
+#### `github_clone.py` {#github-clone}
 
 [`github_clone.py`](https://(ref:repoTree)/py/github_clone.py) makes a clone of all repositories listed in a file such as those produced by `github_search.py` (\@ref(github-search)). The clone is sparse and only contains VHDL, SystemVerilog and Python files, which are the ones used for this study. The sparse clone is also stripped from its `.git` directory, and zipped to save storage space. The script also stores some basic information about the repository.
 

@@ -136,7 +136,7 @@ class TestVisualizeTestStrategy(TestCase):
 
             make_graph_over_time(
                 [date(2019, 12, 31), date(2020, 1, 1)],
-                [50, 100],
+                dict(a=[50, 100], b=[1, 10]),
                 "ylabel",
                 "title",
                 output_path,
@@ -216,17 +216,19 @@ class TestVisualizeTestStrategy(TestCase):
             calls = [
                 call(
                     [date(2019, 12, 31), date(2020, 1, 1)],
-                    [50, 100],
+                    dict(data=[50, 100]),
                     "Percentage",
                     "Repositories Providing Tests (1 Year Average)",
                     (Path(work_dir) / "repositories_providing_tests.png"),
+                    False,
                 ),
                 call(
                     [date(2019, 12, 31), date(2020, 1, 1)],
-                    [100, 50],
+                    dict(data=[100, 50]),
                     "Percentage",
                     "Repositories with Tests Using a Standard Framework (1 Year Average)",
                     (Path(work_dir) / "repositories_using_std_framework.png"),
+                    False,
                 ),
             ]
             make_graph_over_time_mock.assert_has_calls(calls)
