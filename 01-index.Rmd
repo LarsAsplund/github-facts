@@ -7,11 +7,7 @@ site: bookdown::bookdown_site
 bibliography: ["Rmd/refs.bib"]
 csl: Rmd/ieee.csl
 link-citations: yes
-documentclass: report
 lof: yes
-biblio-title: References
-margin-left: 35mm
-margin-right: 35mm
 output:
   bookdown::gitbook:
     css: Rmd/style.css
