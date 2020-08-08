@@ -29,7 +29,7 @@ include_svg("img/professional_repo_framework_distribution.svg")
 
 The distribution of professional repositories, which is shown in Figure \@ref(fig:professional-repo-mix), looks a bit different compared to the overall view in figure \@ref(fig:total-repo-mix), but UVM is still not dominating. Another notable observation is how frameworks are used in combination:
 
-* **Most repositories using more than one framework use VUnit**.
+* **Most repositories using more than one framework use VUnit and OSVVM**.
 * **More than half of the repositories using OSVVM also use VUnit**.
 * **UVM is not combined with any other framework**.
 
@@ -67,3 +67,7 @@ While some insights were shown on how verification frameworks are used on GitHub
 3. In this section, the number of repositories was analyzed, and not the number of users. This is misleading because a single user can have several repositories and a single repository can have many contributors. WS presents percentages of design projects and would suffer from the same problem. However, we don't think they have that data. Looking at the newly released 2020 survey (results are yet to be published) there are no questions that allow them to determine if two survey participants are working on the same project or not. Most likely they are counting users.
 
 To get a deeper and more accurate understanding of the GitHub data, in following sections we will continue analyzing the Git history of these repositories and finding the number of users for each framework. The Git history will also reveal how the framework usage has changed over time.
+
+### How-To
+
+The statistics and Euler diagrams presented in this section were produced by the previously mentioned `analyze_test_strategy.py` (\@ref(analyze-test-strategy)) and `visualize_test_strategy.py` (\@ref(visualize-test-strategy)) scripts. The classification of repositories is provided with [`repo_classification.json`](https://(ref:repoTree)/repo_classification.json) which is input to the `visualize_test_strategy.py` script.
