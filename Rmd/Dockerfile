@@ -2,7 +2,7 @@ FROM btdi/bookdown
 
 WORKDIR /src
 
-RUN apt install -y python3 librsvg2-bin git \
+RUN apt update -qq && apt install -y python3 librsvg2-bin git \
   && Rscript \
     -e "install.packages('reticulate')" \
     -e "reticulate::install_miniconda()"
