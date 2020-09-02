@@ -12,12 +12,17 @@ from tempfile import TemporaryDirectory
 from pathlib import Path
 from shutil import copy
 from datetime import date
+from json import dump
 from visualize_users import (
     create_euler_diagrams,
     create_plots,
     create_bar_races,
     create_timeline,
     main,
+    create_timezone_chart,
+    get_error_color,
+    create_timezone_charts,
+    visualize,
 )
 from visualize_test_strategy import date_range
 
@@ -27,20 +32,32 @@ class TestVisualizeUsers(TestCase):
 
     user_data = dict(
         user_1=dict(
-            classification="professional", test_strategies=dict(vunit=1 * 86400)
+            classification="professional",
+            test_strategies=dict(vunit=dict(commit_time=1 * 86400, repo="a/b")),
         ),
         user_2=dict(
-            classification="professional", test_strategies=dict(osvvm=2 * 86400)
+            classification="professional",
+            test_strategies=dict(osvvm=dict(commit_time=2 * 86400, repo="c/d")),
         ),
         user_3=dict(
             classification="professional",
-            test_strategies=dict(osvvm=3 * 86400, vunit=1 * 86400),
+            test_strategies=dict(
+                osvvm=dict(commit_time=3 * 86400, repo="e/f"),
+                vunit=dict(commit_time=1 * 86400, repo="g/h"),
+            ),
         ),
         user_4=dict(
-            classification="professional", test_strategies=dict(vunit=5 * 86400)
+            classification="professional",
+            test_strategies=dict(vunit=dict(commit_time=5 * 86400, repo="i/j")),
         ),
-        user_5=dict(classification="academic", test_strategies=dict(vunit=6 * 86400)),
-        user_6=dict(classification="unknown", test_strategies=dict(vunit=7 * 86400)),
+        user_5=dict(
+            classification="academic",
+            test_strategies=dict(vunit=dict(commit_time=6 * 86400, repo="k/l")),
+        ),
+        user_6=dict(
+            classification="unknown",
+            test_strategies=dict(vunit=dict(commit_time=7 * 86400, repo="m/n")),
+        ),
     )
 
     accumulated_histograms = dict(
@@ -243,12 +260,208 @@ class TestVisualizeUsers(TestCase):
                     (Path(image_dir) / f"{classification}_user_bar_race.png").exists()
                 )
 
+    @patch("visualize_users.proportion_confint")
+    def test_create_timezone_chart(self, proportion_confint_mock):
+        timezone_distributions = dict(
+            unknown={timezone: abs(timezone) for timezone in range(-12, 15)}
+        )
+        timezone_distributions_as_percentage = dict(
+            unknown=dict(
+                timezones={
+                    timezone: 100
+                    * abs(timezone)
+                    / sum(timezone_distributions["unknown"].values())
+                    for timezone in range(-12, 15)
+                }
+            )
+        )
+
+        regions_percentage = dict()
+        region_users = dict()
+        total = sum(timezone_distributions["unknown"].values())
+        region_users["Europe"] = sum(
+            [
+                value
+                for key, value in timezone_distributions["unknown"].items()
+                if key in range(-1, 4)
+            ]
+        )
+        regions_percentage["Europe"] = 100 * region_users["Europe"] / total
+
+        region_users["America"] = sum(
+            [
+                value
+                for key, value in timezone_distributions["unknown"].items()
+                if key in range(-10, -1)
+            ]
+        )
+        regions_percentage["America"] = 100 * region_users["America"] / total
+
+        region_users["Asia"] = total - region_users["Europe"] - region_users["America"]
+        regions_percentage["Asia"] = (
+            100 - regions_percentage["Europe"] - regions_percentage["America"]
+        )
+
+        side_effect = [
+            (
+                (region_users["America"] - 0) / total,
+                (region_users["America"] + 1) / total,
+            ),
+            (
+                (region_users["Europe"] - 2) / total,
+                (region_users["Europe"] + 3) / total,
+            ),
+            ((region_users["Asia"] - 4) / total, (region_users["Asia"] + 5) / total),
+        ]
+        proportion_confint_mock.side_effect = side_effect
+
+        timezone_data = create_timezone_chart(timezone_distributions, "label")
+
+        self.assertDictEqual(
+            timezone_data["unknown"]["timezones"],
+            timezone_distributions_as_percentage["unknown"]["timezones"],
+        )
+
+        for region in regions_percentage:
+            self.assertAlmostEqual(
+                timezone_data["unknown"]["regions_percentage"][region],
+                regions_percentage[region],
+            )
+
+        for iteration, region in enumerate(["America", "Europe", "Asia"]):
+            self.assertAlmostEqual(
+                timezone_data["unknown"]["region_lower_bound"][region],
+                100 * 2 * iteration / total,
+            )
+            self.assertAlmostEqual(
+                timezone_data["unknown"]["region_upper_bound"][region],
+                100 * (2 * iteration + 1) / total,
+            )
+
+    def test_get_error_color(self):
+        region = "Europe"
+        regions_percentage = dict(Europe=17)
+        region_upper_bound = dict(Europe=4)  # 21
+        region_lower_bound = dict(Europe=7)  # 10
+        reference_timezone_data = dict(
+            regions_percentage=dict(Europe=None),
+            region_upper_bound=dict(Europe=2),
+            region_lower_bound=dict(Europe=3),
+        )
+        for ref_region_percentage, expected_color in zip(
+            [7, 8, 9, 13, 17, 19, 20, 24, 25],
+            ["red", "blue", "blue", "green", "green", "green", "blue", "blue", "red"],
+        ):
+            reference_timezone_data["regions_percentage"][
+                "Europe"
+            ] = ref_region_percentage
+            self.assertEqual(
+                get_error_color(
+                    region,
+                    regions_percentage,
+                    region_lower_bound,
+                    region_upper_bound,
+                    reference_timezone_data,
+                ),
+                expected_color,
+            )
+
+    @patch("visualize_users.create_timezone_chart")
+    def test_create_timezone_charts(self, create_timezone_chart_mock):
+        with TemporaryDirectory() as image_dir:
+            image_path = Path(image_dir)
+            user_data = dict(
+                user_1=dict(
+                    timezones={-8: 66, -7: 34},
+                    classification="professional",
+                    test_strategies=dict(vunit=dict(commit_time=1 * 86400, repo="a/b")),
+                ),
+                user_2=dict(
+                    timezones={1: 50, 2: 50},
+                    classification="professional",
+                    test_strategies=dict(osvvm=dict(commit_time=2 * 86400, repo="c/d")),
+                ),
+                user_3=dict(
+                    classification="professional",
+                    timezones={0: 10, 1: 70, 2: 20},
+                    test_strategies=dict(
+                        osvvm=dict(commit_time=3 * 86400, repo="e/f"),
+                        vunit=dict(commit_time=1 * 86400, repo="g/h"),
+                    ),
+                ),
+            )
+
+            create_timezone_chart_mock.return_value = dict(user=dict())
+
+            timezone_data = create_timezone_charts(
+                user_data, image_path, reference_timezone_data=None
+            )
+            self.assertDictEqual(timezone_data, dict(user=dict()))
+
+            expected_timezone_arg = dict(vunit={-8: 1, 1: 1}, osvvm={1: 2},)
+            create_timezone_chart_mock.assert_called_once_with(
+                expected_timezone_arg, "Framework", None
+            )
+            self.assertTrue((image_path / "framework_timezone_chart.svg").exists())
+
+    @staticmethod
+    @patch("visualize_users.create_timezone_charts")
+    @patch("visualize_users.print_vunit_hotspot")
+    @patch("visualize_users.create_euler_diagrams")
+    @patch("visualize_users.create_plots")
+    @patch("visualize_users.create_bar_races")
+    def test_visualize(
+        create_bar_races_mock,
+        create_plots_mock,
+        create_euler_diagrams_mock,
+        print_vunit_hotspot_mock,
+        create_timezone_charts_mock,
+    ):
+        with TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            std_users_stat_path = temp_path / "std_users_stat_path.json"
+            sample_users_stat_path = temp_path / "sample_users_stat_path.json"
+            image_path = temp_path / "image_path"
+            video_path = temp_path / "video_path"
+
+            with open(std_users_stat_path, "w") as json:
+                dump("std_users_stat", json)
+
+            with open(sample_users_stat_path, "w") as json:
+                dump("sample_users_stat", json)
+
+            create_timezone_charts_mock.side_effect = [
+                dict(unknown="reference_timezone_data"),
+                "timezone_data",
+            ]
+            create_plots_mock.return_value = "accumulated_histograms"
+
+            visualize(
+                std_users_stat_path, sample_users_stat_path, image_path, video_path
+            )
+
+            calls = [
+                call("sample_users_stat", image_path),
+                call("std_users_stat", image_path, "reference_timezone_data"),
+            ]
+
+            create_timezone_charts_mock.assert_has_calls(calls)
+            print_vunit_hotspot_mock.assert_called_once_with("std_users_stat")
+            create_euler_diagrams_mock.assert_called_once_with(
+                "std_users_stat", image_path
+            )
+            create_plots_mock.assert_called_once_with("std_users_stat", image_path)
+            create_bar_races_mock.assert_called_once_with(
+                "accumulated_histograms", date(2011, 1, 1), image_path, video_path
+            )
+
     @staticmethod
     @patch(
         "sys.argv",
         [
             "visualize_users.py",
             "path/to/users_stat.json",
+            "path/to/sample_users_stat.json",
             "path/to/image",
             "path/to/video",
         ],
@@ -258,6 +471,7 @@ class TestVisualizeUsers(TestCase):
         main()
         visualize_mock.assert_called_once_with(
             Path("path") / "to" / "users_stat.json",
+            Path("path") / "to" / "sample_users_stat.json",
             Path("path") / "to" / "image",
             Path("path") / "to" / "video",
         )

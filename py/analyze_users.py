@@ -15,7 +15,7 @@ from fuzzywuzzy import fuzz
 from github_clone import clone
 from analyze_test_strategy import analyze_test_strategy
 
-USER_JSON_VERSION = 1
+USER_JSON_VERSION = 2
 
 
 def get_repos_using_a_std_framework(repos_stat):
@@ -27,9 +27,12 @@ def get_repos_using_a_std_framework(repos_stat):
     return repo_list
 
 
-def get_source_files(repo):
-    """Return current VHDL, SystemVerilog and Python source files."""
-    extensions = [".vhd", ".vhdl", ".py", ".sv"]
+def get_source_files(repo, extensions=None):
+    """
+    Return current source files with the given extensions.
+    
+    Default extensions are for VHDL, SystemVerilog and Python source files."""
+    extensions = extensions if extensions else [".vhd", ".vhdl", ".py", ".sv"]
     source_files = []
     try:
         head = repo.head.ref.commit
@@ -66,18 +69,39 @@ def resolve_classification(classification_1, classification_2):
     return "unknown"
 
 
-def update_data(user_data, user, strategy, commit_time, classification):
-    """Update collected user data with new information."""
+def update_timezones(user_data, user, timezones):
+    """Update user data with the provided timezones."""
     if user not in user_data:
-        user_data[user] = dict(test_strategies={strategy: commit_time})
+        user_data[user] = dict(timezones=timezones)
+        return
+
+    if "timezones" not in user_data[user]:
+        user_data[user]["timezones"] = timezones
+        return
+
+    for timezone, count in timezones.items():
+        if timezone in user_data[user]["timezones"]:
+            user_data[user]["timezones"][timezone] += count
+        else:
+            user_data[user]["timezones"][timezone] = count
+
+
+def update_strategy_data(user_data, user, strategy, strategy_data, classification):
+    """Update collected user data with new strategy information."""
+    if user not in user_data:
+        user_data[user] = dict(test_strategies={strategy: strategy_data})
+
+    elif "test_strategies" not in user_data[user]:
+        user_data[user]["test_strategies"] = {strategy: strategy_data}
 
     elif strategy not in user_data[user]["test_strategies"]:
-        user_data[user]["test_strategies"][strategy] = commit_time
+        user_data[user]["test_strategies"][strategy] = strategy_data
 
-    else:
-        user_data[user]["test_strategies"][strategy] = min(
-            user_data[user]["test_strategies"][strategy], commit_time,
-        )
+    elif (
+        strategy_data["commit_time"]
+        < user_data[user]["test_strategies"][strategy]["commit_time"]
+    ):
+        user_data[user]["test_strategies"][strategy] = strategy_data
 
     if "classification" not in user_data[user]:
         user_data[user]["classification"] = classification
@@ -85,6 +109,14 @@ def update_data(user_data, user, strategy, commit_time, classification):
         user_data[user]["classification"] = resolve_classification(
             user_data[user]["classification"], classification
         )
+
+
+# GitPython can crash if handling large batches of source files. 100 seems to be working¨
+# fine.
+def batch(full_list):
+    """Yield successive 100-sized batches."""
+    for idx in range(0, len(full_list), 100):
+        yield full_list[idx : idx + 100]
 
 
 def get_repo_user_data(repo, source_files, classification):
@@ -100,20 +132,16 @@ def get_repo_user_data(repo, source_files, classification):
         return user_data, dropped_test_strategies
 
     current_frameworks = get_current_frameworks(repo, source_files)
+    user_name = Path(repo.git_dir).parent.parent.name
+    repo_name = Path(repo.git_dir).parent.name
 
-    # GitPython can crash if handling large batches of source files. 100 seems to be working¨
-    # fine.
-    def batch(full_list):
-        """Yield successive 100-sized batches."""
-        for idx in range(0, len(full_list), 100):
-            yield full_list[idx : idx + 100]
-
-    for batch in batch(source_files):
+    for file_batch in batch(source_files):
         commit_no = 0
-        for commit in repo.iter_commits(paths=batch):
+        for commit in repo.iter_commits(paths=file_batch):
             commit_no += 1
             author = commit.author
             user = f"{author.name} <{author.email}>"
+            timezones_updated = False
             for source_file in commit.stats.files.keys():
                 if Path(source_file).suffix not in [".vhd", ".vhdl", ".py", ".sv"]:
                     continue
@@ -128,15 +156,26 @@ def get_repo_user_data(repo, source_files, classification):
 
                 test_strategies = analyze_test_strategy(code, Path(source_file).suffix)
 
+                if test_strategies and not timezones_updated:
+                    timezones_updated = True
+                    timezones = dict()
+                    timezones[commit.author_tz_offset // -3600] = 1
+                    update_timezones(user_data, user, timezones)
+
                 for strategy in test_strategies:
                     if strategy not in current_frameworks:
                         dropped_test_strategies.update([strategy])
                     else:
-                        update_data(
+                        update_strategy_data(
                             user_data,
                             user,
                             strategy,
-                            datetime.timestamp(commit.authored_datetime),
+                            dict(
+                                commit_time=datetime.timestamp(
+                                    commit.authored_datetime
+                                ),
+                                repo=f"{user_name}/{repo_name}",
+                            ),
                             classification,
                         )
 
@@ -171,13 +210,15 @@ def remove_aliases(user_experience, user_aliases):
     for user, data in user_experience.items():
         fixed_user = user_aliases.get(user, user)
         if fixed_user in result:
-            for strategy, commit_time in data["test_strategies"].items():
+            for strategy, strategy_data in data["test_strategies"].items():
                 if strategy in result[fixed_user]["test_strategies"]:
-                    result[fixed_user]["test_strategies"][strategy] = min(
-                        result[fixed_user]["test_strategies"][strategy], commit_time
-                    )
+                    if (
+                        strategy_data["commit_time"]
+                        < result[fixed_user]["test_strategies"][strategy]["commit_time"]
+                    ):
+                        result[fixed_user]["test_strategies"][strategy] = strategy_data
                 else:
-                    result[fixed_user]["test_strategies"][strategy] = commit_time
+                    result[fixed_user]["test_strategies"][strategy] = strategy_data
         else:
             result[fixed_user] = data
 
@@ -222,9 +263,10 @@ def get_user_data(repos_root, repo_list, repo_classification, user_aliases, redo
             print("  New users: %s" % ascii("|".join(new_users))[1:-1])
 
         for user, data in repo_user_data.items():
-            for strategy, commit_time in data["test_strategies"].items():
-                update_data(
-                    user_data, user, strategy, commit_time, data["classification"],
+            update_timezones(user_data, user, data["timezones"])
+            for strategy, strategy_data in data["test_strategies"].items():
+                update_strategy_data(
+                    user_data, user, strategy, strategy_data, data["classification"],
                 )
 
     return user_data

@@ -15,6 +15,7 @@ import matplotlib.animation as animation
 from IPython.display import HTML
 from moviepy.editor import VideoFileClip
 from moviepy.video.fx.resize import resize
+from statsmodels.stats.proportion import proportion_confint
 from visualize_test_strategy import (
     plot_euler_diagram,
     fix_framework_name_casing,
@@ -60,11 +61,15 @@ def create_plots(user_data, output_dir):
 
             if framework == "std":
                 dates = [
-                    date.fromtimestamp(timestamp)
-                    for timestamp in data["test_strategies"].values()
+                    date.fromtimestamp(strategy_data["commit_time"])
+                    for strategy_data in data["test_strategies"].values()
                 ]
             else:
-                dates = [date.fromtimestamp(data["test_strategies"][framework])]
+                dates = [
+                    date.fromtimestamp(
+                        data["test_strategies"][framework]["commit_time"]
+                    )
+                ]
 
             return dates
 
@@ -235,7 +240,7 @@ def create_bar_race(
         def create(self, _):
             """
             Create a frame.
-            
+
             This is a callback used by matplotlib when creating a frame in the animation.
             """
             if self._idx >= len(self._frame_dates):
@@ -389,7 +394,7 @@ def create_bar_race(
                 play_button = mpimg.imread(str(self._image_path / "play.png"))
                 self._ax.imshow(
                     play_button,
-                    extent=[self._xlim_high * 0.4, self._xlim_high * 0.6, 1, 3,],
+                    extent=[self._xlim_high * 0.4, self._xlim_high * 0.6, 1, 3],
                     aspect=self._xlim_high / 10,
                     zorder=5,
                     alpha=0.9,
@@ -537,13 +542,286 @@ def create_bar_races(
         )
 
 
-def visualize(users_stat_path, image_path, video_path):
-    """Create Euler diagrams, standard plots, and bar races for the user data."""
-    with open(users_stat_path) as json:
-        user_data = load(json)
+def print_vunit_hotspot(user_data):
+    """Print all VUnit users added early 2018 to analyze that hotspot."""
+    print("VUnit hotspot users:")
+    for user, data in user_data.items():
+        if "vunit" not in data["test_strategies"]:
+            continue
 
-    create_euler_diagrams(user_data, image_path)
-    accumulated_histograms = create_plots(user_data, image_path)
+        if (
+            datetime(2018, 2, 1).timestamp()
+            < data["test_strategies"]["vunit"]["commit_time"]
+            < datetime(2018, 5, 1).timestamp()
+        ):
+            print(user, data)
+
+
+def get_error_color(
+    region,
+    regions_percentage,
+    region_lower_bound,
+    region_upper_bound,
+    reference_timezone_data,
+):
+    """Return color to use for error bars."""
+    lower = regions_percentage[region] - region_lower_bound[region]
+    upper = regions_percentage[region] + region_upper_bound[region]
+    ref_lower = (
+        reference_timezone_data["regions_percentage"][region]
+        - reference_timezone_data["region_lower_bound"][region]
+    )
+    ref_upper = (
+        reference_timezone_data["regions_percentage"][region]
+        + reference_timezone_data["region_upper_bound"][region]
+    )
+
+    if (lower <= ref_lower) and (upper >= ref_upper):
+        return "green"
+
+    if (upper < ref_lower) or (lower > ref_upper):
+        return "red"
+
+    return "blue"
+
+
+def create_timezone_chart(timezone_distributions, label, reference_timezone_data=None):
+    """Create timezone chart for the provided distribution."""
+    bar_stride = 30
+    n_distributions = len(timezone_distributions)
+    bar_offset = -bar_stride * (n_distributions - 1) // 2
+    _, axis = plt.subplots()
+    plt.grid(True, "major", "y", color="lightgrey")
+    axis.set_ylabel(f"Percentage of {label} Users")
+    axis.set_title(f"{label} Users by Region and Time Zone")
+    plt.yticks(ticks=range(0, 101, 10))
+
+    if n_distributions == 1:
+        axis.set_xlabel("GMT Offset")
+        axis.set_xlim(
+            -12 - 30 * (n_distributions - 1) / 2, 14 + 30 * (n_distributions - 1) / 2
+        )
+    else:
+        plt.xticks(
+            ticks=range(-2 * 30, 3 * 30, 30),
+            labels=["VUnit", "OSVVM", "UVVM", "UVM", "cocotb"],
+        )
+
+    face_color = {
+        "America": (0.12156862745098039, 0.4666666666666667, 0.7058823529411765, 1.0),
+        "Europe": (1.0, 0.4980392156862745, 0.054901960784313725, 1.0),
+        "Asia": (0.17254901960784313, 0.6274509803921569, 0.17254901960784313, 1.0),
+    }
+    capsize = max(5 / n_distributions, 2)
+
+    def bar_with_error(x_pos, y_pos, err, face_color, err_color, width):
+        axis.bar(x_pos, y_pos, width=width, alpha=0.2, color=face_color)
+        axis.errorbar(
+            x_pos,
+            y_pos,
+            err,
+            capsize=capsize,
+            color=err_color,
+            uplims=True,
+            lolims=True,
+        )
+
+    def make_to_percentage(total_n_users):
+        def to_percentage(value):
+            return 100 * value / total_n_users
+
+        return to_percentage
+
+    timezone_data = dict()
+    for key, timezone_distribution in timezone_distributions.items():
+        timezone_data[key] = dict()
+        label = fix_framework_name_casing(key)
+        total_n_users = sum(timezone_distribution.values())
+
+        to_percentage = make_to_percentage(total_n_users)
+
+        timezone_distribution_percentage = {
+            timezone: to_percentage(n_users)
+            for timezone, n_users in timezone_distribution.items()
+        }
+        timezone_data[key]["timezones"] = timezone_distribution_percentage
+
+        regions = dict(America=0, Europe=0, Asia=0)
+        for timezone, value in timezone_distribution.items():
+            if -10 <= int(timezone) < -1:
+                regions["America"] += value
+            elif -1 <= int(timezone) < 4:
+                regions["Europe"] += value
+            else:
+                regions["Asia"] += value
+
+        regions_percentage = {
+            region: to_percentage(n_users) for region, n_users in regions.items()
+        }
+
+        timezone_data[key]["regions_percentage"] = regions_percentage
+
+        region_lower_bound = dict()
+        region_upper_bound = dict()
+
+        for region, users_in_region in regions.items():
+            (lower_bound, upper_bound) = proportion_confint(
+                users_in_region, total_n_users, 0.05, "binom_test"
+            )
+            region_lower_bound[region] = to_percentage(
+                users_in_region - total_n_users * lower_bound
+            )
+            region_upper_bound[region] = to_percentage(
+                total_n_users * upper_bound - users_in_region
+            )
+
+        timezone_data[key]["region_lower_bound"] = region_lower_bound
+        timezone_data[key]["region_upper_bound"] = region_upper_bound
+
+        america_bars = axis.bar(
+            [i for i in range(-10 + bar_offset, -1 + bar_offset)],
+            [
+                timezone_distribution_percentage.get(str(timezone))
+                if timezone_distribution_percentage.get(str(timezone))
+                else 0
+                for timezone in range(-10, -1)
+            ],
+            color=face_color["America"],
+        )
+        europe_bars = axis.bar(
+            [i for i in range(-1 + bar_offset, 4 + bar_offset)],
+            [
+                timezone_distribution_percentage.get(str(timezone))
+                if timezone_distribution_percentage.get(str(timezone))
+                else 0
+                for timezone in range(-1, 4)
+            ],
+            color=face_color["Europe"],
+        )
+        asia_bars = axis.bar(
+            [i for i in range(4 + bar_offset, 15 + bar_offset)],
+            [
+                timezone_distribution_percentage.get(str(timezone))
+                if timezone_distribution_percentage.get(str(timezone))
+                else 0
+                for timezone in range(4, 15)
+            ],
+            color=face_color["Asia"],
+        )
+
+        axis.bar(
+            [i for i in range(-12 + bar_offset, -10 + bar_offset)],
+            [
+                timezone_distribution_percentage.get(str(timezone))
+                if timezone_distribution_percentage.get(str(timezone))
+                else 0
+                for timezone in range(-12, -10)
+            ],
+            color=face_color["Asia"],
+        )
+
+        region_width = {"America": 9, "Europe": 5, "Asia": 11}
+        region_offset = {"America": -6, "Europe": 1, "Asia": 9}
+
+        for region in ["America", "Europe", "Asia"]:
+            color = (
+                "black"
+                if not reference_timezone_data
+                else get_error_color(
+                    region,
+                    regions_percentage,
+                    region_lower_bound,
+                    region_upper_bound,
+                    reference_timezone_data,
+                )
+            )
+            bar_with_error(
+                region_offset[region] + bar_offset,
+                regions_percentage[region],
+                [[region_lower_bound[region]], [region_upper_bound[region]]],
+                face_color[region],
+                color,
+                region_width[region],
+            )
+
+        axis.bar(
+            [-11.5 + bar_offset],
+            [regions_percentage["Asia"]],
+            width=2,
+            alpha=0.2,
+            color=face_color["Asia"],
+        )
+
+        bar_offset += bar_stride
+
+    axis.legend(
+        (america_bars, europe_bars, asia_bars),
+        ("North and South America", "Europe and Africa", "Asia and Australia"),
+    )
+
+    return timezone_data
+
+
+def create_timezone_charts(user_data, image_path, reference_timezone_data=None):
+    """Create a chart showing the distribution of users over timezones."""
+    timezone_distributions = dict(
+        vunit=dict(),
+        osvvm=dict(),
+        uvvm=dict(),
+        uvm=dict(),
+        cocotb=dict(),
+        unknown=dict(),
+    )
+    for data in user_data.values():
+        timezone = max(data["timezones"], key=data["timezones"].get)
+        test_strategies = data.get("test_strategies")
+        test_strategy_names = (
+            ["unknown"] if not test_strategies else list(test_strategies.keys())
+        )
+        for strategy in test_strategy_names:
+            if timezone in timezone_distributions[strategy]:
+                timezone_distributions[strategy][timezone] += 1
+            else:
+                timezone_distributions[strategy][timezone] = 1
+
+    non_empty_distributions = dict()
+    for strategy, timezones in timezone_distributions.items():
+        if timezones:
+            non_empty_distributions[strategy] = timezones
+
+    label = (
+        "VHDL"
+        if (len(non_empty_distributions) == 1)
+        and ("unknown" in non_empty_distributions)
+        else "Framework"
+    )
+    timezone_data = create_timezone_chart(
+        non_empty_distributions, label, reference_timezone_data
+    )
+    output_path = image_path / f"{label.lower()}_timezone_chart.svg"
+    if output_path.exists():
+        output_path.unlink()
+    plt.savefig(output_path, format="svg")
+
+    return timezone_data
+
+
+def visualize(std_users_stat_path, sample_users_stat_path, image_path, video_path):
+    """Create Euler diagrams, standard plots, and bar races for the user data."""
+    with open(std_users_stat_path) as json:
+        std_users_data = load(json)
+
+    with open(sample_users_stat_path) as json:
+        sample_users_data = load(json)
+
+    reference_timezone_data = create_timezone_charts(sample_users_data, image_path)
+    timezone_data = create_timezone_charts(
+        std_users_data, image_path, reference_timezone_data["unknown"]
+    )
+    print(timezone_data)
+    print_vunit_hotspot(std_users_data)
+    create_euler_diagrams(std_users_data, image_path)
+    accumulated_histograms = create_plots(std_users_data, image_path)
     create_bar_races(accumulated_histograms, date(2011, 1, 1), image_path, video_path)
 
 
@@ -554,8 +832,14 @@ def main():
     )
 
     parser.add_argument(
-        "users_stat_path",
-        help="JSON file containing user data for all users",
+        "std_users_stat_path",
+        help="JSON file containing user data for all standard framework users",
+        type=Path,
+    )
+
+    parser.add_argument(
+        "sample_users_stat_path",
+        help="JSON file containing user data for all sample repos users",
         type=Path,
     )
 
@@ -567,7 +851,12 @@ def main():
 
     args = parser.parse_args()
 
-    visualize(args.users_stat_path, args.image_path, args.video_path)
+    visualize(
+        args.std_users_stat_path,
+        args.sample_users_stat_path,
+        args.image_path,
+        args.video_path,
+    )
 
 
 if __name__ == "__main__":

@@ -198,7 +198,7 @@ def clone_from_file_based_list(
 
     with open(repo_list_path) as repo_list:
         repos = [line[:-1] for line in repo_list]
-        clone(repos, repos_root, github_user, github_access_token, retry, no_zip=False)
+        clone(repos, repos_root, github_user, github_access_token, retry, no_zip)
 
 
 def main():
@@ -218,10 +218,15 @@ def main():
         "github_access_token", help="Github access token to use with the Github API"
     )
     parser.add_argument(
-        "--retry", help="Retry cloning repos that previously failed", default=False
+        "--retry",
+        help="Retry cloning repos that previously failed",
+        action="store_true",
+        default=False,
     )
 
-    parser.add_argument("--no-zip", help="Don't zip the clone", default=False)
+    parser.add_argument(
+        "--no-zip", help="Don't zip the clone", action="store_true", default=False
+    )
 
     args = parser.parse_args()
 

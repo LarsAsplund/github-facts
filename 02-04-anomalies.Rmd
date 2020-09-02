@@ -1,0 +1,35 @@
+## Anomalies
+
+The explanation for the VUnit temporal anomaly seen in Figure \@ref(fig:academic-trends) is to be found in the *Elementos de Sistemas* course offered by the Brazilian [Insper Institution](https://www.insper.edu.br/). The students of that course used VUnit for their work and also provided the results on GitHub.
+
+The Brazilian connection to this anomaly raises a more general question: are the trends we see global trends or just strong local trends? Git can actually provide insights to that as well, since each Git commit also logs the timezone of the committer.
+
+To set a reference, we start by analyzing how VHDL users are distributed around the globe. Figure \@ref(fig:vhdl-users-by-region) was created by analyzing all VHDL commits in a [random subset](https://(ref:repoTree)/sample_repos.txt) of all the VHDL repositories on GitHub. This subset contains 2000 repositories and slightly more than 2500 users.
+
+```{r vhdl-users-by-region, fig.cap='VHDL users by region and timezone.', echo=FALSE, out.width = '85%', fig.align='center'}
+include_svg("img/vhdl_timezone_chart.svg")
+```
+
+With 27 timezones, the image is rather scattered. It is also a bit distorted, since locations using daylight saving time will occupy two timezones during a year, while those not using daylight savings time occupy one. To get a feel for the bigger picture, we have identified three larger regions: (North and South) America; Europe and Africa; and Asia and Australia. The vertical arrows at the top of the region bars represent the 95% confidence intervals for these numbers.
+
+The european/african region has 44% of the users, which is sligtly more than the american region (41%). However, the confidence intervals of the two regions overlap, meaning that the order between the two regions isn't statistically significant. On the other hand, the asian/australian region is, with 15% of the users, significantly smaller than two other regions. Note that this may not represent the real distribution of VHDL users in the world, since there can be regional differences in open source involvement. However, that potential bias is not important for this study. What's important is that a framework with an even global adoption should have the given distribution among the regions. Figure \@ref(fig:framework-users-by-region) shows that this is not the case.
+
+```{r framework-users-by-region, fig.cap='Framework users by region and timezone.', echo=FALSE, out.width = '100%', fig.align='center'}
+include_svg("img/framework_timezone_chart.svg")
+```
+
+The numbers given in Figure \@ref(fig:framework-users-by-region) are the actual numbers on GitHub after a full scan for all standard framework users. From that point of view, the result is exact without any confidence interval. However, we've assumed that GitHub is representative for some larger group of users which results in the given confidence intervals. What that larger group of users is will be discussed later in this paper.
+
+By comparing the confidence intervals in Figure \@ref(fig:framework-users-by-region) with those of the reference distribution in Figure \@ref(fig:vhdl-users-by-region) we can distinguish three different cases:
+
+1. The confidence interval for a region completely overlaps that of the reference distribution. This is marked with green arrows.
+2. The confidence interval for a region do not overlap that of the reference distribution. This is marked with red arrows.
+3. The confidence interval for a region partially overlaps that of the reference distribution. This is marked with blue arrows.
+
+Based on this classification we can draw some conclusions:
+
+* All confidence intervals for UVM are green. This means that **the UVM distribution is consistent with an even global adoption of the framework**.
+* **VUnit and OSVVM have no GitHub users in Asia/Australia and this under representation is significant**. Note that also UVVM has no users in that region, but with fewer overall users the confidence intervals are larger and significant conclusions are harder to draw.
+* As shown in Figure \@ref(fig:vhdl-users-by-region), America and Europe/Africa regions are similar in size. **OSVVM and UVVM deviate from this with significantly more users in Europe/Africa while America is significantly under represented**.
+
+In the next section, we will derive confidence intervals for all results in this study, as well as the results from WS. This will allow us to conclude where the studies are consistent with each other and where they are significantly different.

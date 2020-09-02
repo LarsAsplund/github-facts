@@ -57,7 +57,7 @@ This may come as a surprise. Many engineers working professionally with VHDL wou
 
 In the following sections, we will dig deeper into the data to see what frameworks and combination of frameworks people are using. We will also compare those findings to the results presented in the *Wilson Research Group functional verification study* [@wilson18].
 
-### How-To
+### How-To {#repos-howto}
 
 The results presented so far were compiled using the scripts presented in the following sections.
 

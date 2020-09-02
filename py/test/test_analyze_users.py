@@ -25,6 +25,7 @@ from analyze_users import (
     USER_JSON_VERSION,
     analyze,
     main,
+    update_timezones,
 )
 
 
@@ -59,7 +60,7 @@ class TestAnalyzeUsers(TestCase):
             self.prevent_repo_from_locking_files_to_be_deleted(repo)
 
     @staticmethod
-    def _create_repo(repo_dir):
+    def create_repo(repo_dir):
         subprocess.call(["git", "init"], cwd=repo_dir)
         subprocess.call(
             ["git", "config", "--local", "user.name", "Your Name"], cwd=repo_dir
@@ -73,46 +74,56 @@ class TestAnalyzeUsers(TestCase):
         return repo
 
     @staticmethod
-    def _commit_files(repo_dir, seconds_after_epoch, author, files, rm_files=None):
+    def commit_files(
+        repo_dir, seconds_after_epoch, timezone, author, files, rm_files=None
+    ):
         for file, code in files.items():
-            path = Path(repo_dir) / file
+            path = repo_dir / file
             parent = path.parent
-            if parent != Path(repo_dir):
+            if parent != repo_dir:
                 parent.mkdir(parents=True)
             path.write_text(code)
-            subprocess.call(["git", "add", str(path)], cwd=repo_dir)
+            subprocess.call(["git", "add", str(path)], cwd=str(repo_dir))
         if rm_files:
             for file in rm_files:
-                path = Path(repo_dir) / file
-                subprocess.call(["git", "rm", str(path)], cwd=repo_dir)
-        os.environ["GIT_AUTHOR_DATE"] = f"1970-01-01 00:00:0{seconds_after_epoch} +0000"
+                path = repo_dir / file
+                subprocess.call(["git", "rm", str(path)], cwd=str(repo_dir))
+        os.environ["GIT_AUTHOR_DATE"] = (
+            f"1970-01-02 00:00:0{seconds_after_epoch} %+03d00" % timezone
+        )
         subprocess.call(
-            ["git", "commit", "--author", f'"{author}"', "-m", "commit"], cwd=repo_dir,
+            ["git", "commit", "--author", f'"{author}"', "-m", "commit"],
+            cwd=str(repo_dir),
         )
 
     def test_get_repo_user_data(self):
+        with TemporaryDirectory() as repo_root:
+            repo_dir = Path(repo_root) / "a" / "b"
+            repo_dir.mkdir(parents=True)
 
-        with TemporaryDirectory() as repo_dir:
-            repo = self._create_repo(repo_dir)
+            repo = self.create_repo(repo_dir)
 
-            self._commit_files(
+            self.commit_files(
                 repo_dir,
                 0,
+                -12,
                 "a <a@b.c>",
                 {"a.py": "", "c.vhdl": "", "g.txt": "", "h.vhd": ""},
             )
 
-            self._commit_files(
+            self.commit_files(
                 repo_dir,
+                1,
                 1,
                 "b <c@d.e>",
                 {"b.vhd": "library osvvm;\n", "e.py": "import cocotb\n"},
                 ["h.vhd"],
             )
 
-            self._commit_files(
+            self.commit_files(
                 repo_dir,
                 2,
+                1,
                 "b <c@d.e>",
                 {
                     "b.vhd": "library osvvm;\nlibrary ieee;\n",
@@ -121,16 +132,18 @@ class TestAnalyzeUsers(TestCase):
                 },
             )
 
-            self._commit_files(
+            self.commit_files(
                 repo_dir,
                 3,
+                0,
                 "c <f@g.h>",
                 {"b.vhd": "library osvvm;\nlibrary ieee, foo;\n"},
             )
 
-            self._commit_files(
+            self.commit_files(
                 repo_dir,
                 4,
+                14,
                 "d <i@j.k>",
                 {"d.vhd": "library vunit_lib;\nlibrary uvvm_util;\n", "e.py": ""},
             )
@@ -153,90 +166,140 @@ class TestAnalyzeUsers(TestCase):
             self.assertEqual(len(repo_user_data), 3)
             self.assertDictEqual(
                 repo_user_data["b <c@d.e>"]["test_strategies"],
-                dict(osvvm=1.0, vunit=2.0, uvm=2.0),
+                dict(
+                    osvvm=dict(commit_time=86400 + 1 - 1 * 3600, repo="a/b"),
+                    vunit=dict(commit_time=86400 + 2 - 1 * 3600, repo="a/b"),
+                    uvm=dict(commit_time=86400 + 2 - 1 * 3600, repo="a/b"),
+                ),
             )
+            self.assertDictEqual(repo_user_data["b <c@d.e>"]["timezones"], {1: 2})
             self.assertDictEqual(
-                repo_user_data["c <f@g.h>"]["test_strategies"], dict(osvvm=3.0)
+                repo_user_data["c <f@g.h>"]["test_strategies"],
+                dict(osvvm=dict(commit_time=86400 + 3 - 0 * 3600, repo="a/b")),
             )
+            self.assertDictEqual(repo_user_data["c <f@g.h>"]["timezones"], {0: 1})
             self.assertDictEqual(
                 repo_user_data["d <i@j.k>"]["test_strategies"],
-                dict(vunit=4.0, uvvm=4.0),
+                dict(
+                    vunit=dict(commit_time=86400 + 4 - 14 * 3600, repo="a/b"),
+                    uvvm=dict(commit_time=86400 + 4 - 14 * 3600, repo="a/b"),
+                ),
             )
+            self.assertDictEqual(repo_user_data["d <i@j.k>"]["timezones"], {14: 1})
 
             for data in repo_user_data.values():
                 self.assertEqual(data["classification"], "professional")
 
-    def test_get_user_data(self):
-        with TemporaryDirectory() as user_dir:
-            user = Path(user_dir).name
-            repo_dirs = dict()
-            repos = dict()
-            classifications = ["professional", "academic", "unknown"]
-            repo_list = []
-            repo_classification = dict()
-            for classification in classifications:
-                repo_dir = Path(user_dir) / f"{classification}_repo"
-                repo_dir.mkdir()
-                repo_dirs[classification] = repo_dir
-                repos[classification] = self._create_repo(repo_dirs[classification])
-                repo_list.append(f"{user}/{classification}_repo")
-                repo_classification[f"{user}/{classification}_repo"] = classification
+    def test_update_timezones(self):
+        user_data = dict()
+        update_timezones(user_data, "user", {0: 1})
+        self.assertDictEqual(user_data, dict(user=dict(timezones={0: 1})))
+        user_data["user2"] = dict()
+        update_timezones(user_data, "user2", {1: 2})
+        self.assertDictEqual(
+            user_data, dict(user=dict(timezones={0: 1}), user2=dict(timezones={1: 2}))
+        )
+        update_timezones(user_data, "user", {0: 2, 1: 3})
+        self.assertDictEqual(
+            user_data,
+            dict(user=dict(timezones={0: 3, 1: 3}), user2=dict(timezones={1: 2})),
+        )
 
-            self._commit_files(
-                repos["professional"].working_tree_dir,
+    @classmethod
+    def create_test_repos(cls, repo_root, classifications):
+        user_dir = Path(repo_root) / "a"
+        user = user_dir.name
+        repo_dirs = dict()
+        repos = dict()
+        repo_list = []
+        repo_classification = dict()
+        for classification in classifications:
+            repo_dir = user_dir / f"{classification}_repo"
+            repo_dir.mkdir(parents=True)
+            repo_dirs[classification] = repo_dir
+            repos[classification] = cls.create_repo(repo_dirs[classification])
+            repo_list.append(f"{user}/{classification}_repo")
+            repo_classification[f"{user}/{classification}_repo"] = classification
+
+        if "professional" in classifications:
+            cls.commit_files(
+                Path(repos["professional"].working_tree_dir),
+                2,
+                1,
+                "author_1 <author_1@mail.com>",
+                {"a.vhd": "library vunit_lib;\n"},
+            )
+
+        if "academic" in classifications:
+            cls.commit_files(
+                Path(repos["academic"].working_tree_dir),
+                1,
+                1,
+                "author_1 <author_1@mail.com>",
+                {"a.vhd": "library vunit_lib;\n"},
+            )
+
+            cls.commit_files(
+                Path(repos["academic"].working_tree_dir),
+                0,
+                -12,
+                "author_2 <author_2@mail.com>",
+                {"b.sv": "import uvm_pkg::*;\n"},
+            )
+
+            cls.commit_files(
+                Path(repos["academic"].working_tree_dir),
+                1,
+                0,
+                "author_2 <author_2@mail.com>",
+                {"c.py": "import cocotb\n"},
+            )
+
+        if "unknown" in classifications:
+            cls.commit_files(
+                Path(repos["unknown"].working_tree_dir),
+                0,
                 2,
                 "author_1 <author_1@mail.com>",
                 {"a.vhd": "library vunit_lib;\n"},
             )
 
-            self._commit_files(
-                repos["academic"].working_tree_dir,
+            cls.commit_files(
+                Path(repos["unknown"].working_tree_dir),
                 1,
-                "author_1 <author_1@mail.com>",
-                {"a.vhd": "library vunit_lib;\n"},
-            )
-
-            self._commit_files(
-                repos["academic"].working_tree_dir,
-                0,
+                14,
                 "author_2 <author_2@mail.com>",
                 {"b.sv": "import uvm_pkg::*;\n"},
             )
 
-            self._commit_files(
-                repos["academic"].working_tree_dir,
-                1,
-                "author_2 <author_2@mail.com>",
-                {"c.py": "import cocotb\n"},
-            )
-
-            self._commit_files(
-                repos["unknown"].working_tree_dir,
+            cls.commit_files(
+                Path(repos["unknown"].working_tree_dir),
                 0,
-                "author_1 <author_1@mail.com>",
-                {"a.vhd": "library vunit_lib;\n"},
-            )
-
-            self._commit_files(
-                repos["unknown"].working_tree_dir,
-                1,
-                "author_2 <author_2@mail.com>",
-                {"b.sv": "import uvm_pkg::*;\n"},
-            )
-
-            self._commit_files(
-                repos["unknown"].working_tree_dir,
                 0,
                 "author_2 <author_2@mail.com>",
                 {"c.py": "import cocotb\n"},
             )
 
-            self._commit_files(
-                repos["unknown"].working_tree_dir,
+            cls.commit_files(
+                Path(repos["unknown"].working_tree_dir),
                 1,
+                -7,
                 "author_3 <author_3@mail.com>",
                 {"d.vhd": "library osvvm;\n"},
             )
+
+        return user_dir, repo_dirs, repos, repo_list, repo_classification
+
+    def test_get_user_data(self):
+        classifications = ["professional", "academic", "unknown"]
+        with TemporaryDirectory() as repo_root:
+            (
+                user_dir,
+                repo_dirs,
+                repos,
+                repo_list,
+                repo_classification,
+            ) = self.create_test_repos(repo_root, classifications)
 
             user_data = get_user_data(
                 Path(user_dir).parent, repo_list, repo_classification, dict(), False
@@ -271,15 +334,34 @@ class TestAnalyzeUsers(TestCase):
 
             self.assertDictEqual(
                 user_data["author_1 <author_1@mail.com>"]["test_strategies"],
-                dict(vunit=0),
+                dict(
+                    vunit=dict(commit_time=86400 + 0 - 2 * 3600, repo="a/unknown_repo")
+                ),
+            )
+            self.assertDictEqual(
+                user_data["author_1 <author_1@mail.com>"]["timezones"], {1: 2, 2: 1},
             )
             self.assertDictEqual(
                 user_data["author_2 <author_2@mail.com>"]["test_strategies"],
-                dict(uvm=0, cocotb=0),
+                dict(
+                    cocotb=dict(
+                        commit_time=86400 + 0 - 0 * 3600, repo="a/unknown_repo"
+                    ),
+                    uvm=dict(commit_time=86400 + 1 - 14 * 3600, repo="a/unknown_repo"),
+                ),
+            )
+            self.assertDictEqual(
+                user_data["author_2 <author_2@mail.com>"]["timezones"],
+                {-12: 1, 0: 2, 14: 1},
             )
             self.assertDictEqual(
                 user_data["author_3 <author_3@mail.com>"]["test_strategies"],
-                dict(osvvm=1),
+                dict(
+                    osvvm=dict(commit_time=86400 + 1 + 7 * 3600, repo="a/unknown_repo")
+                ),
+            )
+            self.assertDictEqual(
+                user_data["author_3 <author_3@mail.com>"]["timezones"], {-7: 1},
             )
 
     def test_get_potential_aliases(self):
@@ -300,10 +382,27 @@ class TestAnalyzeUsers(TestCase):
 
     def test_remove_aliases(self):
         user_experience = {
-            "james.bond <top@secret.uk>": dict(test_strategies=dict(vunit=0, osvvm=17)),
-            "James Bond <007@mi6.uk>": dict(test_strategies=dict(vunit=1, uvvm=21)),
-            "undercover <007@mi6.uk>": dict(test_strategies=dict(uvm=13, uvvm=7)),
-            "ian.flemming <author@somewhere.uk": dict(test_strategies=dict(cocotb=100)),
+            "james.bond <top@secret.uk>": dict(
+                test_strategies=dict(
+                    vunit=dict(commit_time=0, repo="a/b"),
+                    osvvm=dict(commit_time=17, repo="c/d"),
+                )
+            ),
+            "James Bond <007@mi6.uk>": dict(
+                test_strategies=dict(
+                    vunit=dict(commit_time=1, repo="c/d"),
+                    uvvm=dict(commit_time=21, repo="e/f"),
+                )
+            ),
+            "undercover <007@mi6.uk>": dict(
+                test_strategies=dict(
+                    uvm=dict(commit_time=13, repo="a/b"),
+                    uvvm=dict(commit_time=7, repo="e/f"),
+                )
+            ),
+            "ian.flemming <author@somewhere.uk": dict(
+                test_strategies=dict(cocotb=dict(commit_time=100, repo="g/h"))
+            ),
         }
         user_aliases = {
             "james.bond <top@secret.uk>": "James Bond <007@mi6.uk>",
@@ -315,11 +414,18 @@ class TestAnalyzeUsers(TestCase):
         self.assertEqual(len(user_experience), 2)
         self.assertDictEqual(
             user_experience["James Bond <007@mi6.uk>"],
-            dict(test_strategies=dict(vunit=0, osvvm=17, uvvm=7, uvm=13)),
+            dict(
+                test_strategies=dict(
+                    vunit=dict(commit_time=0, repo="a/b"),
+                    osvvm=dict(commit_time=17, repo="c/d"),
+                    uvvm=dict(commit_time=7, repo="e/f"),
+                    uvm=dict(commit_time=13, repo="a/b"),
+                )
+            ),
         )
         self.assertDictEqual(
             user_experience["ian.flemming <author@somewhere.uk"],
-            dict(test_strategies=dict(cocotb=100)),
+            dict(test_strategies=dict(cocotb=dict(commit_time=100, repo="g/h"))),
         )
 
     @patch("analyze_users.get_potential_aliases")

@@ -69,7 +69,7 @@ The version you are reading was generated on `r format(Sys.time(), '%Y-%m-%d')` 
 # What Can GitHub Tell Us About the HDL Industry? {#index}
 
 ```{r adaption, echo=FALSE, out.width = '85%', fig.align='center'}
-knitr::include_graphics("img/vhdl_adoption_by_region.png")
+knitr::include_graphics("img/vhdl_timezone_chart.svg")
 ```
 
 During the last few years we've had many discussions within the **VUnit** community where we failed to reach a conclusion because we don't fully know how people at large are working with design and verification. Some questions arise frequently:

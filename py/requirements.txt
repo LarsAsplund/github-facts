@@ -6,3 +6,4 @@ MoviePy
 pytest
 python-Levenshtein
 requests
+statsmodels

@@ -68,6 +68,6 @@ While some insights were shown on how verification frameworks are used on GitHub
 
 To get a deeper and more accurate understanding of the GitHub data, in following sections we will continue analyzing the Git history of these repositories and finding the number of users for each framework. The Git history will also reveal how the framework usage has changed over time.
 
-### How-To
+### How-To {#frameworks-howto}
 
 The statistics and Euler diagrams presented in this section were produced by the previously mentioned `analyze_test_strategy.py` (\@ref(analyze-test-strategy)) and `visualize_test_strategy.py` (\@ref(visualize-test-strategy)) scripts. The classification of repositories is provided with [`repo_classification.json`](https://(ref:repoTree)/repo_classification.json) which is input to the `visualize_test_strategy.py` script.
