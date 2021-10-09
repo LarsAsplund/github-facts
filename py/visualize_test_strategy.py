@@ -34,7 +34,7 @@ def integrate_over_dates(date_dict, first_date, last_date):
 def create_accumulated_histogram_from_dict_with_dates(date_dict, date_function):
     """
     Create an accumulated histogram from a dict with dates.
-    
+
     The dates are founds in the values by applying the provided date function. If
     the date function returns None that value doesn't contribute to the
     accumulated histogram.
@@ -171,7 +171,9 @@ def make_graph_over_time(time, lines, ylabel, title, output_path, show_legend=Tr
     time_as_list = list(time)
     for framework, values in lines.items():
         ax.plot(
-            time_as_list, values, label=fix_framework_name_casing(framework),
+            time_as_list,
+            values,
+            label=fix_framework_name_casing(framework),
         )
 
         max_value = max(max_value, max(values))
@@ -200,6 +202,24 @@ def fix_framework_name_casing(lowercase_names):
             return "UVVM"
         elif name == "uvm":
             return "UVM"
+        elif name == "pss":
+            return "PSS"
+        elif name == "ovm":
+            return "OVM"
+        elif name == "avm":
+            return "AVM"
+        elif name == "vvm":
+            return "VVM"
+        elif name == "rvm":
+            return "RVM"
+        elif name == "erm":
+            return "eRM"
+        elif name == "urm":
+            return "URM"
+        elif name == "python":
+            return "Python"
+        elif name == "other":
+            return "Other"
         else:
             return name
 
@@ -216,7 +236,7 @@ def fix_framework_name_casing(lowercase_names):
 def get_repo_framework_distribution(repos_stat, repo_classification):
     """
     Get the number of repositories using each framework.
-    
+
     Returns a dict with keys are framework(s) joined with "&" (for example "VUnit&OSVVM")
     and the values the number of repositories using the combination of frameworks as indicated
     by the key.
@@ -256,7 +276,7 @@ def get_repo_framework_distribution(repos_stat, repo_classification):
 def plot_euler_diagram(distribution, output_path):
     """
     Visualize distribution as an euler diagram and save it to output_path.
-    
+
     This function uses the eulerr package in R.
     """
 

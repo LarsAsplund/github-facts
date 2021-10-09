@@ -1,6 +1,6 @@
 # Verification Practices
 
-When it comes to statistical analysis of verification practices the *Wilson Research Group functional verification study* [@wilson14] [@wilson16] [@wilson18] has been the main source of information for many years. While this is a good effort towards highlighting interesting industry trends, it has a number of fundamental flaws:
+When it comes to statistical analysis of verification practices the *Wilson Research Group functional verification study* [@wilson14] [@wilson16] [@wilson18] [@wilson20] has been the main source of information for many years. While this is a good effort towards highlighting interesting industry trends, it has a number of fundamental flaws:
 
 * It includes some but not all of the [most popular](https://star-history.t9t.io/#vunit/vunit&osvvm/osvvm&cocotb/cocotb&UVVM/UVVM) open-source verification frameworks: VUnit [@vunit], cocotb [@cocotb], OSVVM [@osvvm] and UVVM [@uvvm].
 * Like any questionnaire-based study, it can't measure what people not responding do ([non-response bias](https://en.wikipedia.org/wiki/Participation_bias)). By the same token, it can only measure what respondents say they do but not what they actually do ([response bias](https://en.wikipedia.org/wiki/Response_bias)).

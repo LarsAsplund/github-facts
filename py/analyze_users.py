@@ -86,22 +86,43 @@ def update_timezones(user_data, user, timezones):
             user_data[user]["timezones"][timezone] = count
 
 
+def update_user_strategy_data(current_data, new_data):
+    """Update data for first and last commit."""
+    if not current_data:
+        return new_data
+
+    if new_data["first_commit_time"] < current_data["first_commit_time"]:
+        current_data["first_commit_time"] = new_data["first_commit_time"]
+        current_data["first_repo"] = new_data["first_repo"]
+
+    if new_data["last_commit_time"] > current_data["last_commit_time"]:
+        current_data["last_commit_time"] = new_data["last_commit_time"]
+        current_data["last_repo"] = new_data["last_repo"]
+
+    return current_data
+
+
 def update_strategy_data(user_data, user, strategy, strategy_data, classification):
     """Update collected user data with new strategy information."""
     if user not in user_data:
-        user_data[user] = dict(test_strategies={strategy: strategy_data})
+        user_data[user] = dict(
+            test_strategies={strategy: update_user_strategy_data(None, strategy_data)}
+        )
 
     elif "test_strategies" not in user_data[user]:
-        user_data[user]["test_strategies"] = {strategy: strategy_data}
+        user_data[user]["test_strategies"] = {
+            strategy: update_user_strategy_data(None, strategy_data)
+        }
 
     elif strategy not in user_data[user]["test_strategies"]:
-        user_data[user]["test_strategies"][strategy] = strategy_data
+        user_data[user]["test_strategies"][strategy] = update_user_strategy_data(
+            None, strategy_data
+        )
 
-    elif (
-        strategy_data["commit_time"]
-        < user_data[user]["test_strategies"][strategy]["commit_time"]
-    ):
-        user_data[user]["test_strategies"][strategy] = strategy_data
+    else:
+        user_data[user]["test_strategies"][strategy] = update_user_strategy_data(
+            user_data[user]["test_strategies"][strategy], strategy_data
+        )
 
     if "classification" not in user_data[user]:
         user_data[user]["classification"] = classification
@@ -171,10 +192,14 @@ def get_repo_user_data(repo, source_files, classification):
                             user,
                             strategy,
                             dict(
-                                commit_time=datetime.timestamp(
+                                first_commit_time=datetime.timestamp(
                                     commit.authored_datetime
                                 ),
-                                repo=f"{user_name}/{repo_name}",
+                                first_repo=f"{user_name}/{repo_name}",
+                                last_commit_time=datetime.timestamp(
+                                    commit.authored_datetime
+                                ),
+                                last_repo=f"{user_name}/{repo_name}",
                             ),
                             classification,
                         )
@@ -212,13 +237,13 @@ def remove_aliases(user_experience, user_aliases):
         if fixed_user in result:
             for strategy, strategy_data in data["test_strategies"].items():
                 if strategy in result[fixed_user]["test_strategies"]:
-                    if (
-                        strategy_data["commit_time"]
-                        < result[fixed_user]["test_strategies"][strategy]["commit_time"]
-                    ):
-                        result[fixed_user]["test_strategies"][strategy] = strategy_data
+                    update_user_strategy_data(
+                        result[fixed_user]["test_strategies"][strategy], strategy_data
+                    )
                 else:
-                    result[fixed_user]["test_strategies"][strategy] = strategy_data
+                    result[fixed_user]["test_strategies"][
+                        strategy
+                    ] = update_user_strategy_data(None, strategy_data)
         else:
             result[fixed_user] = data
 

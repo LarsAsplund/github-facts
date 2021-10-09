@@ -65,7 +65,7 @@ def clone_repo(repo_dir, repo_url, sparse=True):
             fptr.write("*.py\n")
             fptr.write("*.sv\n")
 
-    errors |= call(["git", "pull", "origin", "master"], cwd=repo_dir) != 0
+    errors |= call(["git", "pull", "origin", "main"], cwd=repo_dir) != 0
 
     return not errors
 
@@ -85,7 +85,8 @@ def get_basic_data(
 
     if update_basic_data:
         response = search.request(
-            "https://api.github.com/repos/%s" % github_repo_full_name, page_size=None,
+            "https://api.github.com/repos/%s" % github_repo_full_name,
+            page_size=None,
         )
         if not response.ok:
             basic_data = None
@@ -103,7 +104,9 @@ def zip_repo(repo_dir):
     user_dir = repo_dir.parent.resolve()
     github_repo_name = repo_dir.name
     ziph = zipfile.ZipFile(
-        user_dir / f"{github_repo_name}.zip", "w", zipfile.ZIP_DEFLATED,
+        user_dir / f"{github_repo_name}.zip",
+        "w",
+        zipfile.ZIP_DEFLATED,
     )
     for root, _, files in walk(repo_dir):
         for file in files:
@@ -113,7 +116,12 @@ def zip_repo(repo_dir):
 
 
 def clone(
-    repos, repos_root, github_user, github_access_token, retry, no_zip=False,
+    repos,
+    repos_root,
+    github_user,
+    github_access_token,
+    retry,
+    no_zip=False,
 ):
     """Clones all repos in the provided list."""
 
@@ -192,7 +200,12 @@ def clone(
 
 
 def clone_from_file_based_list(
-    repo_list_path, repos_root, github_user, github_access_token, retry, no_zip=False,
+    repo_list_path,
+    repos_root,
+    github_user,
+    github_access_token,
+    retry,
+    no_zip=False,
 ):
     """Clones all repos in the provided file-based list."""
 
