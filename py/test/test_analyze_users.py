@@ -66,7 +66,8 @@ class TestAnalyzeUsers(TestCase):
             ["git", "config", "--local", "user.name", "Your Name"], cwd=repo_dir
         )
         subprocess.call(
-            ["git", "config", "--local", "user.email", "you@example.com"], cwd=repo_dir,
+            ["git", "config", "--local", "user.email", "you@example.com"],
+            cwd=repo_dir,
         )
 
         repo = Repo(repo_dir)
@@ -148,9 +149,10 @@ class TestAnalyzeUsers(TestCase):
                 {"d.vhd": "library vunit_lib;\nlibrary uvvm_util;\n", "e.py": ""},
             )
 
-            (repo_user_data, dropped_test_strategies,) = get_repo_user_data(
-                repo, [], None
-            )
+            (
+                repo_user_data,
+                dropped_test_strategies,
+            ) = get_repo_user_data(repo, [], None)
             self.assertCountEqual(dropped_test_strategies, [])
             self.assertDictEqual(repo_user_data, dict())
 
@@ -167,22 +169,54 @@ class TestAnalyzeUsers(TestCase):
             self.assertDictEqual(
                 repo_user_data["b <c@d.e>"]["test_strategies"],
                 dict(
-                    osvvm=dict(commit_time=86400 + 1 - 1 * 3600, repo="a/b"),
-                    vunit=dict(commit_time=86400 + 2 - 1 * 3600, repo="a/b"),
-                    uvm=dict(commit_time=86400 + 2 - 1 * 3600, repo="a/b"),
+                    osvvm=dict(
+                        first_commit_time=86400 + 1 - 1 * 3600,
+                        first_repo="a/b",
+                        last_commit_time=86400 + 2 - 1 * 3600,
+                        last_repo="a/b",
+                    ),
+                    vunit=dict(
+                        first_commit_time=86400 + 2 - 1 * 3600,
+                        first_repo="a/b",
+                        last_commit_time=86400 + 2 - 1 * 3600,
+                        last_repo="a/b",
+                    ),
+                    uvm=dict(
+                        first_commit_time=86400 + 2 - 1 * 3600,
+                        first_repo="a/b",
+                        last_commit_time=86400 + 2 - 1 * 3600,
+                        last_repo="a/b",
+                    ),
                 ),
             )
             self.assertDictEqual(repo_user_data["b <c@d.e>"]["timezones"], {1: 2})
             self.assertDictEqual(
                 repo_user_data["c <f@g.h>"]["test_strategies"],
-                dict(osvvm=dict(commit_time=86400 + 3 - 0 * 3600, repo="a/b")),
+                dict(
+                    osvvm=dict(
+                        first_commit_time=86400 + 3 - 0 * 3600,
+                        first_repo="a/b",
+                        last_commit_time=86400 + 3 - 0 * 3600,
+                        last_repo="a/b",
+                    )
+                ),
             )
             self.assertDictEqual(repo_user_data["c <f@g.h>"]["timezones"], {0: 1})
             self.assertDictEqual(
                 repo_user_data["d <i@j.k>"]["test_strategies"],
                 dict(
-                    vunit=dict(commit_time=86400 + 4 - 14 * 3600, repo="a/b"),
-                    uvvm=dict(commit_time=86400 + 4 - 14 * 3600, repo="a/b"),
+                    vunit=dict(
+                        first_commit_time=86400 + 4 - 14 * 3600,
+                        first_repo="a/b",
+                        last_commit_time=86400 + 4 - 14 * 3600,
+                        last_repo="a/b",
+                    ),
+                    uvvm=dict(
+                        first_commit_time=86400 + 4 - 14 * 3600,
+                        first_repo="a/b",
+                        last_commit_time=86400 + 4 - 14 * 3600,
+                        last_repo="a/b",
+                    ),
                 ),
             )
             self.assertDictEqual(repo_user_data["d <i@j.k>"]["timezones"], {14: 1})
@@ -335,19 +369,33 @@ class TestAnalyzeUsers(TestCase):
             self.assertDictEqual(
                 user_data["author_1 <author_1@mail.com>"]["test_strategies"],
                 dict(
-                    vunit=dict(commit_time=86400 + 0 - 2 * 3600, repo="a/unknown_repo")
+                    vunit=dict(
+                        first_commit_time=86400 + 0 - 2 * 3600,
+                        first_repo="a/unknown_repo",
+                        last_commit_time=86400 + 2 - 1 * 3600,
+                        last_repo="a/professional_repo",
+                    )
                 ),
             )
             self.assertDictEqual(
-                user_data["author_1 <author_1@mail.com>"]["timezones"], {1: 2, 2: 1},
+                user_data["author_1 <author_1@mail.com>"]["timezones"],
+                {1: 2, 2: 1},
             )
             self.assertDictEqual(
                 user_data["author_2 <author_2@mail.com>"]["test_strategies"],
                 dict(
                     cocotb=dict(
-                        commit_time=86400 + 0 - 0 * 3600, repo="a/unknown_repo"
+                        first_commit_time=86400 + 0 - 0 * 3600,
+                        first_repo="a/unknown_repo",
+                        last_commit_time=86400 + 1 - 0 * 3600,
+                        last_repo="a/academic_repo",
                     ),
-                    uvm=dict(commit_time=86400 + 1 - 14 * 3600, repo="a/unknown_repo"),
+                    uvm=dict(
+                        first_commit_time=86400 + 1 - 14 * 3600,
+                        first_repo="a/unknown_repo",
+                        last_commit_time=86400 + 0 + 12 * 3600,
+                        last_repo="a/academic_repo",
+                    ),
                 ),
             )
             self.assertDictEqual(
@@ -357,11 +405,17 @@ class TestAnalyzeUsers(TestCase):
             self.assertDictEqual(
                 user_data["author_3 <author_3@mail.com>"]["test_strategies"],
                 dict(
-                    osvvm=dict(commit_time=86400 + 1 + 7 * 3600, repo="a/unknown_repo")
+                    osvvm=dict(
+                        first_commit_time=86400 + 1 + 7 * 3600,
+                        first_repo="a/unknown_repo",
+                        last_commit_time=86400 + 1 + 7 * 3600,
+                        last_repo="a/unknown_repo",
+                    )
                 ),
             )
             self.assertDictEqual(
-                user_data["author_3 <author_3@mail.com>"]["timezones"], {-7: 1},
+                user_data["author_3 <author_3@mail.com>"]["timezones"],
+                {-7: 1},
             )
 
     def test_get_potential_aliases(self):
@@ -384,24 +438,61 @@ class TestAnalyzeUsers(TestCase):
         user_experience = {
             "james.bond <top@secret.uk>": dict(
                 test_strategies=dict(
-                    vunit=dict(commit_time=0, repo="a/b"),
-                    osvvm=dict(commit_time=17, repo="c/d"),
+                    vunit=dict(
+                        first_commit_time=0,
+                        first_repo="a/b",
+                        last_commit_time=0,
+                        last_repo="a/b",
+                    ),
+                    osvvm=dict(
+                        first_commit_time=17,
+                        first_repo="c/d",
+                        last_commit_time=18,
+                        last_repo="x/y",
+                    ),
                 )
             ),
             "James Bond <007@mi6.uk>": dict(
                 test_strategies=dict(
-                    vunit=dict(commit_time=1, repo="c/d"),
-                    uvvm=dict(commit_time=21, repo="e/f"),
+                    vunit=dict(
+                        first_commit_time=1,
+                        first_repo="c/d",
+                        last_commit_time=19,
+                        last_repo="c/d",
+                    ),
+                    uvvm=dict(
+                        first_commit_time=21,
+                        first_repo="e/f",
+                        last_commit_time=21,
+                        last_repo="e/f",
+                    ),
                 )
             ),
             "undercover <007@mi6.uk>": dict(
                 test_strategies=dict(
-                    uvm=dict(commit_time=13, repo="a/b"),
-                    uvvm=dict(commit_time=7, repo="e/f"),
+                    uvm=dict(
+                        first_commit_time=13,
+                        first_repo="a/b",
+                        last_commit_time=13,
+                        last_repo="a/b",
+                    ),
+                    uvvm=dict(
+                        first_commit_time=7,
+                        first_repo="e/f",
+                        last_commit_time=7,
+                        last_repo="u/v",
+                    ),
                 )
             ),
             "ian.flemming <author@somewhere.uk": dict(
-                test_strategies=dict(cocotb=dict(commit_time=100, repo="g/h"))
+                test_strategies=dict(
+                    cocotb=dict(
+                        first_commit_time=100,
+                        first_repo="g/h",
+                        last_commit_time=101,
+                        last_repo="n/m",
+                    )
+                )
             ),
         }
         user_aliases = {
@@ -416,16 +507,45 @@ class TestAnalyzeUsers(TestCase):
             user_experience["James Bond <007@mi6.uk>"],
             dict(
                 test_strategies=dict(
-                    vunit=dict(commit_time=0, repo="a/b"),
-                    osvvm=dict(commit_time=17, repo="c/d"),
-                    uvvm=dict(commit_time=7, repo="e/f"),
-                    uvm=dict(commit_time=13, repo="a/b"),
+                    vunit=dict(
+                        first_commit_time=0,
+                        first_repo="a/b",
+                        last_commit_time=19,
+                        last_repo="c/d",
+                    ),
+                    osvvm=dict(
+                        first_commit_time=17,
+                        first_repo="c/d",
+                        last_commit_time=18,
+                        last_repo="x/y",
+                    ),
+                    uvvm=dict(
+                        first_commit_time=7,
+                        first_repo="e/f",
+                        last_commit_time=21,
+                        last_repo="e/f",
+                    ),
+                    uvm=dict(
+                        first_commit_time=13,
+                        first_repo="a/b",
+                        last_commit_time=13,
+                        last_repo="a/b",
+                    ),
                 )
             ),
         )
         self.assertDictEqual(
             user_experience["ian.flemming <author@somewhere.uk"],
-            dict(test_strategies=dict(cocotb=dict(commit_time=100, repo="g/h"))),
+            dict(
+                test_strategies=dict(
+                    cocotb=dict(
+                        first_commit_time=100,
+                        first_repo="g/h",
+                        last_commit_time=101,
+                        last_repo="n/m",
+                    )
+                )
+            ),
         )
 
     @patch("analyze_users.get_potential_aliases")
