@@ -12,6 +12,7 @@ from pathlib import Path
 
 def create_git_repo(file_names, repo_dir):
     subprocess.call(["git", "init"], cwd=repo_dir)
+    subprocess.call(["git", "branch", "--move", "main"], cwd=repo_dir)
     subprocess.call(["git", "config", "--local", "user.name", "Your Name"], cwd=repo_dir)
     subprocess.call(["git", "config", "--local", "user.email", "you@example.com"], cwd=repo_dir)
     for file_name in file_names:
