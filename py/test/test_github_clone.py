@@ -31,8 +31,12 @@ class TestGithubClone(TestCase):
         path_names = ["file1.vhdl", "file2.vhd", "file3.sv", "file4.py", "file5.txt"]
         with TemporaryDirectory() as origin_path, TemporaryDirectory() as full_clone_path, TemporaryDirectory() as sparse_clone_path:
             create_git_repo(path_names, origin_path)
-            clone_repo(Path(full_clone_path), Path(origin_path), sparse=False)
-            clone_repo(Path(sparse_clone_path), Path(origin_path), sparse=True)
+            self.assertTrue(
+                clone_repo(Path(full_clone_path), Path(origin_path), sparse=False)
+            )
+            self.assertTrue(
+                clone_repo(Path(sparse_clone_path), Path(origin_path), sparse=True)
+            )
 
             path_names.append(".git")
             for path_name in path_names:
